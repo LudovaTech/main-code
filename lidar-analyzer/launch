@@ -1,0 +1,26 @@
+#!/bin/bash
+
+ip_addr=192.168.1.35
+bin_name=$(cargo metadata --format-version 1 | jq -r '.packages[].targets[] | select( .kind | map(. == "bin") | any ) | select ( .src_path | contains(".cargo/registry") | . != true ) | .name')
+
+echo "building $bin_name on $ip_addr"
+
+cross build --target=aarch64-unknown-linux-gnu
+
+if [ $? -eq 0 ]; then
+    echo "successfully build files"
+else
+    echo "an error occurred"
+    exit 1
+fi
+
+echo "transferring file..."
+
+rsync ./target/aarch64-unknown-linux-gnu/debug/$bin_name robot@$ip_addr:/home/robot/prog/$bin_name
+
+if [ $? -eq 0 ]; then
+    echo "done."
+else
+    echo "an error occurred when transferring files."
+    exit 1
+fi
