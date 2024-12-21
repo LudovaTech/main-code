@@ -1,6 +1,7 @@
 use rppal::uart::Uart;
-use std::error::Error;
+use std::{error::Error, time};
 use tracing::{debug, error, info, instrument, warn};
+use std::time::{Instant, Duration};
 
 #[derive(Debug)]
 pub struct Lidar {
@@ -17,10 +18,7 @@ impl Lidar {
 
     #[instrument(skip(self))]
     pub fn read(&mut self) -> Result<Option<Box<Vec<u8>>>, Box<dyn Error>> {
-        // Attendre jusqu'à ce que le nbr de bits soit suffisant pour 1 partie de donnée de lidar. Lire cette partie, si elle commence par T, tout va bien sinon on se permet de
-        // - blocker le code ? jusqu'à avoir les caractères restants et être de nouveau synchronisé. Si la lecture avec blockage de code échoue... on est mal
-        // - sinon on stocke pour le prochain appel à la fonction le décalage de trop et teste avec le nbr de bits restant au lieu du normal.
-        //self.conn.flush(rppal::uart::Queue::Both)?;
+        // TODO : si le nombre d'entrée en attente est trop long, c'est que les données sont vielles
         if self.conn.input_len()? < 47 {
             // Taille d'une donnée Lidar
             return Ok(None);
@@ -37,7 +35,13 @@ impl Lidar {
                 // On compléter les données déjà récupérées avec celles qui manque
                 // pour réaligner le flux sans perdre d'information
                 buffer.copy_within(start_pos.., 0);
-                while self.conn.input_len()? < start_pos {}
+                let time_start = Instant::now();
+                while self.conn.input_len()? < start_pos {
+                    if time_start.elapsed() > Duration::from_secs(3) {
+                        error!("Atteindre la fin de la séquence de données du lidar demande trop de temps.");
+                        return Ok(None);
+                    }
+                }
                 let nd = self.conn.read(&mut buffer[(47 - start_pos)..])?;
                 if nd != start_pos {
                     warn!(
