@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+rppal = "0.22.1"
+tracing = "0.1.41"
+tracing-panic = "0.1.2"
+tracing-subscriber = "0.3.19"
