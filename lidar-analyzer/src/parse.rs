@@ -1,6 +1,6 @@
 use rppal::uart::Uart;
 use std::error::Error;
-use tracing::{info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 #[derive(Debug)]
 pub struct Lidar {
@@ -23,45 +23,47 @@ impl Lidar {
         //self.conn.flush(rppal::uart::Queue::Both)?;
         if self.conn.input_len()? < 47 {
             // Taille d'une donnée Lidar
-            Ok(None)
-        } else {
-            let mut buffer: Box<Vec<u8>> = Box::new(vec![0; 47]);
-            let nr = self.conn.read(&mut buffer)?;
-            if nr != 47 {
-                warn!("mauvaise taille de lecture pour buffer (got {:?})", nr);
-                return Ok(None);
-            }
-            if !(buffer[0] == 84 && buffer[1] == 44) {
-                warn!(
-                    "Les données du Lidar ne sont pas alignés (has {:?})",
-                    buffer
-                );
-                let mut align = [0u8; 1];
-                let mut after_84: bool = false;
-                while !(after_84 && align[0] == 44) {
-                    // On enlève une par une les données jusqu'à atteindre 84 44
-                    if align[0] == 84 {
-                        after_84 = true;
-                    } else {
-                        after_84 = false;
-                    }
-                    while self.conn.input_len()? < 1 {}
-                    let na = self.conn.read(&mut align)?;
-                    if na != 1 {
-                        warn!("mauvaise taille de lecture pour align (got {:?})", na)
-                    }
-                    // debug!("Found: {:?}", align);
-                }
-                let mut discard = [0u8; 45];
-                while self.conn.input_len()? < 45 {}
-                let nd = self.conn.read(&mut discard)?;
-                if nd != 45 {
-                    warn!("mauvaise taille de lecture pour discard (got {:?})", nd)
-                }
-                info!("Les données du Lidar sont maintenant alignées.");
-                return Ok(None);
-            }
-            Ok(Some(buffer))
+            return Ok(None);
         }
+        let mut buffer: Box<Vec<u8>> = Box::new(vec![0; 47]);
+        let nr = self.conn.read(&mut buffer)?;
+        if nr != 47 {
+            warn!("mauvaise taille de lecture pour buffer (got {:?})", nr);
+            return Ok(None);
+        }
+        if !(buffer[0] == 84 && buffer[1] == 44) {
+            warn!("Le flux UART du lidar n'est pas aligné. Tentative de récupération...");
+            if let Some(start_pos) = Self::look_for_start(&buffer) {
+                // On compléter les données déjà récupérées avec celles qui manque
+                // pour réaligner le flux sans perdre d'information
+                buffer.copy_within(start_pos.., 0);
+                while self.conn.input_len()? < start_pos {}
+                let nd = self.conn.read(&mut buffer[(47 - start_pos)..])?;
+                if nd != start_pos {
+                    warn!(
+                        "mauvaise taille de lecture pour buffer ajout (got {:?})",
+                        nd
+                    );
+                    return Ok(None);
+                }
+                info!("Récupération réussite, le flux UART du lidar est de nouveau aligné.");
+            } else {
+                error!("Pas de début trouvé, 84 44 ne semble pas être présent dans la capture du flux UART du lidar");
+                return Ok(None);
+            }
+        }
+        Ok(Some(buffer))
+    }
+
+    fn look_for_start(buffer: &Box<Vec<u8>>) -> Option<usize> {
+        let mut before_val = buffer[0];
+        for i in 1..buffer.len() - 1 {
+            let actual_val = buffer[i];
+            if before_val == 84 && actual_val == 44 {
+                return Some(i - 1);
+            }
+            before_val = actual_val;
+        }
+        None
     }
 }
