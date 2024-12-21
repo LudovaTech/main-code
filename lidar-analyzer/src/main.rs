@@ -31,7 +31,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let data = lidar.read()?;
         if let Some(values) = data {
-            info!("{:?}", values);
+            let points = parse::LidarPoint::from_data(values)?;
+            info!("got {:?}", points);
         }
     }
 }
