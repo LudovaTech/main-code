@@ -75,11 +75,17 @@ impl Lidar {
     }
 }
 
+/// Représente un point donné par le lidar.
+/// Unités :
+///  - distance : *mm*
+///  - intensity : *0-255*
+///  - angle : *0.01 degree*
+/// On garde ces unités pour des raisons de taille des valeurs dans la mémoire
 #[derive(Debug)]
 pub struct LidarPoint {
     pub distance: u16,
     pub intensity: u8,
-    pub angle: f32,
+    pub angle: u16,
 }
 
 impl LidarPoint {
@@ -97,7 +103,7 @@ impl LidarPoint {
             points.push(LidarPoint {
                 distance: Self::get_2_bytes_lsb_msb(&data, i),
                 intensity: data[i + 2],
-                angle: 0.0,
+                angle: 0,
             });
         }
         let end_angle = Self::get_2_bytes_lsb_msb(&data, 42);
@@ -114,7 +120,7 @@ impl LidarPoint {
         };
 
         for (n_point, point) in points.iter_mut().enumerate() {
-            point.angle = ((start_angle + (angle_step * (n_point as u16))) % 36_000) as f32;
+            point.angle = (start_angle + (angle_step * (n_point as u16))) % 36_000;
         }
         Ok(points)
     }
