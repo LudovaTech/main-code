@@ -7,7 +7,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{self, fmt, Registry};
 
 mod parse;
-mod analyze;
+//mod analyze;
 
 #[inline]
 fn set_up_logging() -> Result<(), Box<dyn Error>> {
@@ -33,7 +33,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         let data = lidar.read()?;
         if let Some(values) = data {
             let points = parse::LidarPoint::from_data(values)?;
-            info!("got {:?}", points);
+            let mut points_pos = Vec::with_capacity(points.len());
+            for point in points.iter() {
+                points_pos.push((point.distance, point.angle));
+            }
+            info!("got {:?}", points_pos);
         }
     }
 }
