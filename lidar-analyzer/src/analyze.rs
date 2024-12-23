@@ -1,17 +1,7 @@
-use core::f32;
-
 use crate::parse::LidarPoint;
 
 // Constantes
 
-// EN mm !
-const LIDAR_DISTANCE_MIN: u16 = 90;
-const LIDAR_DISTANCE_MAX: u16 = 3000;
-
-// Hough transform
-
-/// degrés entre chaque droite calculée par Hough transform (3° -> 30 ms, 1° -> 90ms)
-const DEGRE_STEP: usize = 3;
 /// on exclut les lignes qui contiennent moins de 10 points
 const HOUGH_TRANSFORM_ACCUMULATORS_THRESHOLD: u16 = 10;
 /// taille de la matrice de Hough
@@ -24,40 +14,41 @@ const THETA_MARGIN: f32 = 0.5;
 const THETA_TOLERANCE_PARALLEL: f32 = 0.2;
 /// pour trouver les murs perpendiculaires, il faut une différence d'angle inférieur à 0,2 rad (après - PI/2)
 const THETA_TOLERANCE_PERPENDICULAIRE: f32 = 0.2;
+/// distance minimale *en mm* à partir de laquelle les points détectés du lidar sont conservés
+const LIDAR_DISTANCE_MIN: u16 = 9 * 10;
+/// distance maximale *en mm* en dessous de laquelle les points détectés du lidar sont conservés
+const LIDAR_DISTANCE_MAX: u16 = 300 * 10;
 
-/// On filtre les points du lidar reçus pour qu'ils soient compris entre la taille minimum et maximum
-#[inline]
-fn filter_found_points_to_respect_distances(points: Box<Vec<LidarPoint>>) -> Box<Vec<LidarPoint>> {
-    Box::new(
-        points
-            .into_iter()
-            .filter(|e| (LIDAR_DISTANCE_MIN..LIDAR_DISTANCE_MAX).contains(&e.distance))
-            .collect(),
-    )
-}
+/// mm entre chaque droite calculée par Hough transform
+pub const DISTANCE_RESOLUTION: u16 = 1 * 10;
+/// 0.01 degrés entre chaque droite calculée par Hough transform (3° -> 30 ms, 1° -> 90ms)
+pub const ANGLE_RESOLUTION: u16 = 3 * 100;
 
-/// Hough Transform
-/// algo : https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html
-struct HoughLine {}
+/// nombre d'angle différents possibles avec la résolution donnée
+const ANGLE_DISTRIBUTION: usize = (360 * 100 / ANGLE_RESOLUTION) as usize + 1;
+/// nombre de distances différentes possibles avec la résolution donnée
+const DISTANCE_DISTRIBUTION: usize = (LIDAR_DISTANCE_MAX / DISTANCE_RESOLUTION) as usize + 1;
 
-impl HoughLine {
-    pub fn hough_transform(points: Box<Vec<LidarPoint>>, distance_max: u16) -> Box<Vec<Self>> {
-        let lines: Box<Vec<Self>> = Box::new(Vec::with_capacity(capacity));
 
-        let num_theta: u32 = 180;
-        let theta_step: f32 = DEGRE_STEP as f32 * f32::consts::PI / 180.0;
-        let rho_step: f32 =
-            distance_max as f32 * 2.0 * num_theta as f32 / HOUGH_TRANSFORM_MEMORY_SIZE as f32;
-        for point in points.iter() {
-            for theta_index in (0..num_theta).step_by(DEGRE_STEP) {
-                let theta = theta_index as f32 * theta_step / DEGRE_STEP as f32;
-                let rho_index = round((distance_max + (point.distance * (point.angle as f32).cos())) / rho_step);
-            }
+pub fn build_hough_accumulator(
+    points: &Box<Vec<LidarPoint>>,
+) -> [[u16; ANGLE_DISTRIBUTION]; DISTANCE_DISTRIBUTION] {
+    let mut accumulator = [[0u16; ANGLE_DISTRIBUTION]; DISTANCE_DISTRIBUTION];
+    for point in points.iter() {
+        if point.distance > LIDAR_DISTANCE_MAX {
+            continue;
         }
-        lines
-    }
-}
+        let mut distance_rounded = (point.distance / DISTANCE_RESOLUTION) as usize;
+        let mut angle_rounded = (point.angle / ANGLE_RESOLUTION) as usize;
+        if ((point.distance % DISTANCE_RESOLUTION) as f32) >= (DISTANCE_RESOLUTION as f32 / 2.0) {
+            // Si la distance est plus proche de la valeur arrondie supérieure que inférieure
+            distance_rounded += 1;
+        };
+        if ((point.angle % ANGLE_RESOLUTION) as f32) >= (ANGLE_RESOLUTION as f32 / 2.0) {
+            angle_rounded += 1;
+        };
 
-fn main(points: Box<Vec<LidarPoint>>) {
-    let filtered = filter_found_points_to_respect_distances(points);
+        accumulator[distance_rounded][angle_rounded] += 1;
+    }
+    accumulator
 }
