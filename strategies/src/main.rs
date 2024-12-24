@@ -98,6 +98,7 @@ fn main() {
 }
 
 fn decision(info: &Informations) -> Action {
+    // Le code pour les stratégies vient ici
     Action {
         move_to: Vector2::default(),
         final_orientation: 0.,
