@@ -2,6 +2,7 @@
 
 mod consts;
 mod vector2;
+
 use vector2::Vector2;
 
 /// Ce struct contient l'ensemble des données qui sont passés
@@ -17,7 +18,7 @@ use vector2::Vector2;
 ///
 /// Pour les coordonées relatives au robot, l'origine est le centre du robot, les y positifs
 /// vers le devant du robot et les x positifs à droite.
-/// 
+///
 /// Toutes les distances sont en cm et tous les angles en radians.
 #[derive(Debug, Default)]
 struct Informations {
@@ -74,7 +75,33 @@ struct Informations {
     enemy_positions: (Option<Vector2>, Option<Vector2>),
 }
 
+/// Représente l'ensemble des actions à faire par le robot qui ont été décidés par les stratégies
+#[derive(Debug)]
+struct Action {
+    /// la position vers laquelle on voudrait aller
+    move_to: Vector2,
+    /// l'orientation final que l'on voudra avoir lorsque l'on aura atteint cette position
+    final_orientation: f32,
+    /// est-ce que on active le kicker pour lancer la balle
+    kick: bool,
+    /// vitesse que l'on donne au dribbler :
+    /// - 0 ne bouge pas
+    /// - +255 avance en ramenant la balle vers le robot
+    /// - -255 tourne en expulsant la balle
+    dribbler: i32,
+}
+
 fn main() {
     println!("Hello, world!");
     println!("Vector2 {:?}", Vector2::new(10., 5.));
+    println!("décision prise : {:?}", decision(&Informations::default()));
+}
+
+fn decision(info: &Informations) -> Action {
+    Action {
+        move_to: Vector2::default(),
+        final_orientation: 0.,
+        kick: false,
+        dribbler: 255,
+    }
 }
