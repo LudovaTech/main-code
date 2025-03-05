@@ -66,7 +66,7 @@ impl Wheel {
     /// vitesse entre -1 et 1
     pub fn rotate(&mut self, speed: f64) -> () {
         if -1.0 <= speed && speed <= 1.0 {
-            if 0.0 <= speed && speed < 1.0 {
+            if 0.0 <= speed && speed <= 1.0 {
                 self.cwccw.set_high();
             } else {
                 self.cwccw.set_low();
