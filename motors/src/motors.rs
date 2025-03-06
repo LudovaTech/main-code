@@ -64,7 +64,7 @@ impl Wheel {
 
     /// Change le PWM du moteur
     /// vitesse entre -1 et 1
-    pub fn rotate(&mut self, speed: f64) -> () {
+    pub fn rotate(&mut self, speed: f32) -> () {
         if -1.0 <= speed && speed <= 1.0 {
             if 0.0 <= speed && speed <= 1.0 {
                 self.cwccw.set_high();
@@ -73,7 +73,7 @@ impl Wheel {
             }
             if self
                 .pwm
-                .set_pwm_frequency(PWM_DEFAULT_PERIOD, speed.abs())
+                .set_pwm_frequency(PWM_DEFAULT_PERIOD, speed.abs() as f64)
                 .is_err()
             {
                 // TODO log
@@ -110,5 +110,44 @@ impl Bogie {
         self.front_left.stop();
         self.back_right.stop();
         self.back_left.stop();
+    }
+
+
+    pub fn go_to(&mut self, to_local: Vector2, speed: f32, orientation: Rad32) -> () {
+        const ABCSISSE: Vector2 = Vector2::new(1.0, 0.0);
+
+        // The speed to be sent to the motors is calculated
+        let to_local_angle = Rad32::new(to_local.angle(&ABCSISSE));
+        let mut fr_speed = (to_local_angle - self.front_right.angle_axis_kicker).cos();
+        let mut fl_speed = (to_local_angle - self.front_left.angle_axis_kicker).cos();
+        let mut br_speed = (to_local_angle - self.back_right.angle_axis_kicker).cos();
+        let mut bl_speed = (to_local_angle - self.back_left.angle_axis_kicker).cos();
+
+        // The ratio to be used to calculate the speeds to be sent to the motors is calculated, taking into account the desired speed.
+        let maximum = fr_speed.abs().max(fl_speed.abs().max(br_speed.abs().max(bl_speed.abs())));
+        let rapport = speed / maximum;
+
+        // Speeds are recalculated taking into account the desired speed and
+        // Sends speeds to motors
+        fr_speed *= rapport;
+        fl_speed *= rapport;
+        br_speed *= rapport;
+        bl_speed *= rapport;
+
+        let minimum = fr_speed.min(fl_speed.min(br_speed.min(bl_speed)));
+        let rotation = orientation * speed * 0.6; // TODO Why 0.6 ?
+
+        if minimum - rotation.val() < -1.0 {
+            let rapport = (rotation.val() -1.0) / minimum;
+            fr_speed *= rapport;
+            fl_speed *= rapport;
+            br_speed *= rapport;
+            bl_speed *= rapport;
+        }
+
+        self.front_right.rotate(fr_speed - rotation.val());
+        self.front_left.rotate(fl_speed - rotation.val());
+        self.back_right.rotate(br_speed - rotation.val());
+        self.back_left.rotate(bl_speed - rotation.val());
     }
 }
