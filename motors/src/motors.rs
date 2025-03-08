@@ -1,7 +1,9 @@
+use crate::vector2::Vector2;
 use radians::{Angle, Rad32};
 use rppal::gpio::{Gpio, OutputPin};
 use std::error::Error;
-use crate::vector2::Vector2;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
 /// Valeurs par défaut des pins moteur
@@ -18,7 +20,19 @@ const BL_PWM: u8 = 0;
 const BL_CWCCW: u8 = 0;
 const BL_ANGLE: f32 = 0.0;
 
+/// fréquence par défaut du PWM
 const PWM_DEFAULT_PERIOD: f64 = 1000.0;
+
+/// pins par défaut pour le kicker et le dribbler
+const DRIBBLER_PWM: u8 = 0;
+const DRIBBLER_CWCCW: u8 = 0;
+const KICKER_PIN1: u8 = 0;
+const KICKER_PIN2: u8 = 0;
+
+/// temps min entre deux kicks
+const TIME_BETWEEN_KICK: Duration = Duration::from_secs(2);
+/// temps d'un kick (temps où on donne de l'énergie aux pins)
+const KICK_TIME: Duration = Duration::from_millis(40);
 
 /// Représente un moteur entrainant une roue
 /// Ancien nom MotorMov
@@ -35,8 +49,8 @@ impl Wheel {
         pin_cwccw: u8,
         angle_axis_kicker: Rad32,
     ) -> Result<Self, Box<dyn Error>> {
-        let pwm = Gpio::new()?.get(pin_pwm)?.into_output();
-        let cwccw = Gpio::new()?.get(pin_cwccw)?.into_output();
+        let pwm = Gpio::new()?.get(pin_pwm)?.into_output_high();
+        let cwccw = Gpio::new()?.get(pin_cwccw)?.into_output_high();
         Ok(Self {
             pwm,
             cwccw,
@@ -128,7 +142,9 @@ impl Bogie {
         let mut bl_speed = (to_local_angle - self.back_left.angle_axis_kicker).cos();
 
         // The ratio to be used to calculate the speeds to be sent to the motors is calculated, taking into account the desired speed.
-        let maximum = fr_speed.abs().max(fl_speed.abs().max(br_speed.abs().max(bl_speed.abs())));
+        let maximum = fr_speed
+            .abs()
+            .max(fl_speed.abs().max(br_speed.abs().max(bl_speed.abs())));
         let rapport = speed / maximum;
 
         // Speeds are recalculated taking into account the desired speed and
@@ -142,7 +158,7 @@ impl Bogie {
         let rotation = orientation * speed * 0.6; // TODO Why 0.6 ?
 
         if minimum - rotation.val() < -1.0 {
-            let rapport = (rotation.val() -1.0) / minimum;
+            let rapport = (rotation.val() - 1.0) / minimum;
             fr_speed *= rapport;
             fl_speed *= rapport;
             br_speed *= rapport;
@@ -153,5 +169,62 @@ impl Bogie {
         self.front_left.rotate(fl_speed - rotation.val());
         self.back_right.rotate(br_speed - rotation.val());
         self.back_left.rotate(bl_speed - rotation.val());
+    }
+}
+
+/// S'occupe du dribler et du kicker
+/// ancien DriblerKicker
+#[derive(Debug)]
+struct BallControl {
+    dribbler: Wheel,
+    kicker1: OutputPin,
+    kicker2: OutputPin,
+    last_kick_time: Option<Instant>,
+}
+
+impl BallControl {
+    pub fn new(
+        pin_dribbler_pwm: u8,
+        pin_dribbler_cwccw: u8,
+        pin_kicker1: u8,
+        pin_kicker2: u8,
+    ) -> Result<Self, Box<dyn Error>> {
+        let kicker1 = Gpio::new()?.get(pin_kicker1)?.into_output_low();
+        let kicker2 = Gpio::new()?.get(pin_kicker2)?.into_output_low();
+        Ok(Self {
+            dribbler: Wheel::new(pin_dribbler_pwm, pin_dribbler_cwccw, Rad32::ZERO)?,
+            kicker1,
+            kicker2,
+            last_kick_time: None,
+        })
+    }
+
+    pub fn default() -> Result<Self, Box<dyn Error>> {
+        Self::new(DRIBBLER_PWM, DRIBBLER_CWCCW, KICKER_PIN1, KICKER_PIN2)
+    }
+
+    pub fn dribble(&mut self, speed: f32) {
+        self.dribbler.rotate(speed);
+    }
+
+    pub fn kick(&mut self) {
+        let now = Instant::now();
+        if let Some(last_kick_time) = self.last_kick_time {
+            if (last_kick_time - now) > TIME_BETWEEN_KICK {
+                self.last_kick_time = Some(now);
+                self.perform_kick();
+            }
+        } else {
+            self.last_kick_time = Some(now);
+            self.perform_kick();
+        }
+    }
+
+    fn perform_kick(&mut self) {
+        self.kicker1.set_high();
+        self.kicker2.set_high();
+        sleep(KICK_TIME); // TODO : C'est pas bien d'arrêter tout le code pour le kick
+        self.kicker1.set_low();
+        self.kicker2.set_low();
     }
 }
