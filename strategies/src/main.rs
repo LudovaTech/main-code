@@ -80,7 +80,7 @@ struct Informations {
 #[derive(Debug)]
 struct Action {
     /// la position vers laquelle on voudrait aller
-    move_to: Vector2, //prise en charge Action sans pos du robot
+    move_to: Vector2, //TODO : prise en charge Action sans pos du robot
     /// l'orientation final que l'on voudra avoir lorsque l'on aura atteint cette position
     final_orientation: Rad32,
     /// est-ce que on active le kicker pour lancer la balle
@@ -104,51 +104,51 @@ fn decision(info: &Informations) -> Action {
 }
 
 fn is_outside(info: &Informations) -> Option<Action> {
-    let robot_angle = info.robot_angle.unwrap_or(0.0);
+    let robot_angle = info.robot_angle.unwrap_or(Rad32::new(0.0));
     if let Some(distance_to_nearest_wall) = info.distance_to_nearest_wall {
         if distance_to_nearest_wall < 5.0 {
             //-> bug pour 0; 90; 180 et 270  pt choisir vers cages adverses pour majorité des cas
 
-            let new_position = Vector2::new(0.0, 0.0);
-            let new_orientation = 0.0;
+            let mut new_position = Vector2::new(0.0, 0.0);
+            let mut new_orientation = Rad32::ZERO;
 
-            if robot_angle <= 90.0 {
+            if robot_angle <= Rad32::QUARTER_TURN {
                 // o entre 0 et 90
                 // pos : x-5 ; y + 5
                 //o : o - 90
                 new_position = Vector2::new(robot_position.x - 5.0, robot_position.y + 5.0);
-                new_orientation = robot_angle - 90.0;
+                new_orientation = robot_angle - Rad32::QUARTER_TURN;
             }
 
-            if robot_angle > 90.0 && robot_angle < 180.0 {
+            if robot_angle > Rad32::QUARTER_TURN && robot_angle < Rad32::HALF_TURN {
                 // o entre 90 et 180
                 // pos : x-5 ; y - 5
                 //o : o + 90
                 new_position = Vector2::new(robot_position.x - 5.0, robot_position.y - 5.0);
-                new_orientation = robot_angle + 90.0;
+                new_orientation = robot_angle + Rad32::QUARTER_TURN;
             }
 
-            if robot_angle >= 180.0 && robot_angle < 270.0 {
+            if robot_angle >= Rad32::HALF_TURN && robot_angle < (Rad32::HALF_TURN + Rad32::QUARTER_TURN) {
                 // o entre 180 et 270
                 // pos : x+5 ; y - 5
                 //o : o - 90
                 new_position = Vector2::new(robot_position.x + 5.0, robot_position.y - 5.0);
-                new_orientation = robot_angle - 90.0;
+                new_orientation = robot_angle - Rad32::QUARTER_TURN;
             }
 
-            if robot_angle >= 270.0 && robot_angle < 360.0 {
+            if robot_angle >= (Rad32::HALF_TURN + Rad32::QUARTER_TURN) && robot_angle < Rad32::FULL_TURN {
                 // o entre 270 et 0
                 // pos : x+5 ; y + 5
                 //o : o + 90
                 new_position = Vector2::new(robot_position.x + 5.0, robot_position.y + 5.0);
-                new_orientation = robot_angle + 90.0;
+                new_orientation = robot_angle + Rad32::QUARTER_TURN;
             }
 
             return Some(Action {
                 move_to: new_position,
                 final_orientation: new_orientation,
                 kick: false,
-                dribbler: if info.robot_has_ball { 255 } else { 0 },
+                dribbler: if info.robot_has_ball { 1.0 } else { 0.0 },
             });
         } else {
             return None;
