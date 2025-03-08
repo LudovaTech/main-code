@@ -1,9 +1,7 @@
-//! Ce dossier est dédié au developpement des stratégies.
-
-mod consts;
+//mod consts;
 mod vector2;
-
 use vector2::Vector2;
+use radians::Rad32;
 
 /// Ce struct contient l'ensemble des données qui sont passés
 /// à l'algorithme des stratégies.
@@ -31,7 +29,7 @@ struct Informations {
     /// vu depuis notre goal, augmente dans le sens des aiguilles d'une montre
     /// # Dépendances :
     /// - lidar analyzer complet
-    robot_angle: Option<f32>,
+    robot_angle: Option<Rad32>,
 
     /// distance au mur le plus proche.
     /// Cette valeur est quasiment toujours calculée par lidar analyzer. Elle permet d'éviter de
@@ -66,6 +64,9 @@ struct Informations {
     /// - la caméra de l'autre robot arrive à détecter la balle
     friend_ball_position: Option<Vector2>,
 
+    robot_has_ball: bool,
+    friend_has_ball: bool,
+
     /// tuple des 2 positions des robots adverses
     /// l'une des positions peut-être disponible et l'autre non.
     /// Si la position à l'emplacement 0 du tuple est indisponible, celle à la position
@@ -79,30 +80,80 @@ struct Informations {
 #[derive(Debug)]
 struct Action {
     /// la position vers laquelle on voudrait aller
-    move_to: Vector2,
+    move_to: Vector2, //prise en charge Action sans pos du robot
     /// l'orientation final que l'on voudra avoir lorsque l'on aura atteint cette position
-    final_orientation: f32,
+    final_orientation: Rad32,
     /// est-ce que on active le kicker pour lancer la balle
     kick: bool,
     /// vitesse que l'on donne au dribbler :
     /// - 0 ne bouge pas
-    /// - +255 avance en ramenant la balle vers le robot
-    /// - -255 tourne en expulsant la balle
-    dribbler: i32,
+    /// - +1 avance en ramenant la balle vers le robot
+    /// - -1 tourne en expulsant la balle
+    dribbler: f32,
 }
 
 fn main() {
-    println!("Hello, world!");
     println!("Vector2 {:?}", Vector2::new(10., 5.));
     println!("décision prise : {:?}", decision(&Informations::default()));
 }
 
 fn decision(info: &Informations) -> Action {
-    // Le code pour les stratégies vient ici
-    Action {
-        move_to: Vector2::default(),
-        final_orientation: 0.,
-        kick: false,
-        dribbler: 255,
+    if let Some(refrain) = is_outside(info) {
+        return refrain;
     }
+}
+
+fn is_outside(info: &Informations) -> Option<Action> {
+    let robot_angle = info.robot_angle.unwrap_or(0.0);
+    if let Some(distance_to_nearest_wall) = info.distance_to_nearest_wall {
+        if distance_to_nearest_wall < 5.0 {
+            //-> bug pour 0; 90; 180 et 270  pt choisir vers cages adverses pour majorité des cas
+
+            let new_position = Vector2::new(0.0, 0.0);
+            let new_orientation = 0.0;
+
+            if robot_angle <= 90.0 {
+                // o entre 0 et 90
+                // pos : x-5 ; y + 5
+                //o : o - 90
+                new_position = Vector2::new(robot_position.x - 5.0, robot_position.y + 5.0);
+                new_orientation = robot_angle - 90.0;
+            }
+
+            if robot_angle > 90.0 && robot_angle < 180.0 {
+                // o entre 90 et 180
+                // pos : x-5 ; y - 5
+                //o : o + 90
+                new_position = Vector2::new(robot_position.x - 5.0, robot_position.y - 5.0);
+                new_orientation = robot_angle + 90.0;
+            }
+
+            if robot_angle >= 180.0 && robot_angle < 270.0 {
+                // o entre 180 et 270
+                // pos : x+5 ; y - 5
+                //o : o - 90
+                new_position = Vector2::new(robot_position.x + 5.0, robot_position.y - 5.0);
+                new_orientation = robot_angle - 90.0;
+            }
+
+            if robot_angle >= 270.0 && robot_angle < 360.0 {
+                // o entre 270 et 0
+                // pos : x+5 ; y + 5
+                //o : o + 90
+                new_position = Vector2::new(robot_position.x + 5.0, robot_position.y + 5.0);
+                new_orientation = robot_angle + 90.0;
+            }
+
+            return Some(Action {
+                move_to: new_position,
+                final_orientation: new_orientation,
+                kick: false,
+                dribbler: if info.robot_has_ball { 255 } else { 0 },
+            });
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    } //TO DO
 }
