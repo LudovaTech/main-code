@@ -2,25 +2,27 @@ use radians::{Angle, Rad32};
 use rppal::gpio::{Gpio, OutputPin};
 use std::error::Error;
 use crate::vector2::Vector2;
+use tracing::{error, info, instrument, warn};
 
 /// Valeurs par défaut des pins moteur
 const FR_PWM: u8 = 0;
 const FR_CWCCW: u8 = 0;
-const FR_angle: f32 = 0.0;
+const FR_ANGLE: f32 = 0.0;
 const FL_PWM: u8 = 0;
 const FL_CWCCW: u8 = 0;
-const FL_angle: f32 = 0.0;
+const FL_ANGLE: f32 = 0.0;
 const BR_PWM: u8 = 0;
 const BR_CWCCW: u8 = 0;
-const BR_angle: f32 = 0.0;
+const BR_ANGLE: f32 = 0.0;
 const BL_PWM: u8 = 0;
 const BL_CWCCW: u8 = 0;
-const BL_angle: f32 = 0.0;
+const BL_ANGLE: f32 = 0.0;
 
 const PWM_DEFAULT_PERIOD: f64 = 1000.0;
 
 /// Représente un moteur entrainant une roue
 /// Ancien nom MotorMov
+#[derive(Debug)]
 pub struct Wheel {
     pwm: OutputPin,
     cwccw: OutputPin,
@@ -44,26 +46,27 @@ impl Wheel {
 
     #[inline]
     pub fn default_fr() -> Result<Self, Box<dyn Error>> {
-        Self::new(FR_PWM, FR_CWCCW, Rad32::new(FR_angle))
+        Self::new(FR_PWM, FR_CWCCW, Rad32::new(FR_ANGLE))
     }
 
     #[inline]
     pub fn default_fl() -> Result<Self, Box<dyn Error>> {
-        Self::new(FL_PWM, FL_CWCCW, Rad32::new(FL_angle))
+        Self::new(FL_PWM, FL_CWCCW, Rad32::new(FL_ANGLE))
     }
 
     #[inline]
     pub fn default_br() -> Result<Self, Box<dyn Error>> {
-        Self::new(BR_PWM, BR_CWCCW, Rad32::new(BR_angle))
+        Self::new(BR_PWM, BR_CWCCW, Rad32::new(BR_ANGLE))
     }
 
     #[inline]
     pub fn default_bl() -> Result<Self, Box<dyn Error>> {
-        Self::new(BL_PWM, BL_CWCCW, Rad32::new(BL_angle))
+        Self::new(BL_PWM, BL_CWCCW, Rad32::new(BL_ANGLE))
     }
 
     /// Change le PWM du moteur
     /// vitesse entre -1 et 1
+    #[instrument]
     pub fn rotate(&mut self, speed: f32) -> () {
         if -1.0 <= speed && speed <= 1.0 {
             if 0.0 <= speed && speed <= 1.0 {
@@ -76,10 +79,10 @@ impl Wheel {
                 .set_pwm_frequency(PWM_DEFAULT_PERIOD, speed.abs() as f64)
                 .is_err()
             {
-                // TODO log
+                error!("Attrapé. Impossible de changer la valeur du PWM moteur, la vitesse du moteur reste inchangée.");
             }
         } else {
-            // TODO do nothing but log error
+            error!("Attrapé. Valeur de vitesse '{speed}' incorrecte.");
         }
     }
 
@@ -88,6 +91,7 @@ impl Wheel {
     }
 }
 
+#[derive(Debug)]
 pub struct Bogie {
     pub front_right: Wheel,
     pub front_left: Wheel,
@@ -112,7 +116,7 @@ impl Bogie {
         self.back_left.stop();
     }
 
-
+    #[instrument]
     pub fn go_to(&mut self, to_local: Vector2, speed: f32, orientation: Rad32) -> () {
         const ABCSISSE: Vector2 = Vector2::new(1.0, 0.0);
 
