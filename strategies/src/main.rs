@@ -1,7 +1,7 @@
 //mod consts;
 mod vector2;
 use radians::Rad32;
-use vector2::Vector2;
+use vector2::{GlobalCoordinates, LocalCoordinates, Vector2};
 
 /// Ce struct contient l'ensemble des données qui sont passés
 /// à l'algorithme des stratégies.
@@ -23,7 +23,7 @@ struct Informations {
     /// position *absolue* du robot sur le terrain.
     /// # Dépendances :
     /// - lidar analyzer complet
-    robot_position: Option<Vector2>,
+    robot_position: Option<GlobalCoordinates>,
 
     /// angle du robot *en radians* par rapport à la droite notre goal / leur goal,
     /// vu depuis notre goal, augmente dans le sens des aiguilles d'une montre
@@ -43,18 +43,18 @@ struct Informations {
     /// # Dépendances :
     /// - bluetooth entre les deux robots
     /// - lidar analyzer du robot ami
-    friend_position: Option<Vector2>,
+    friend_position: Option<GlobalCoordinates>,
 
     /// angle du robot ami *en radians* par rapport à la droite notre goal / leur goal,
     /// # Dépendances :
     /// - bluetooth entre les deux robots
     /// - lidar analyzer du robot ami
-    friend_angle: Option<Vector2>,
+    friend_angle: Option<Rad32>,
 
     /// position *relative* de la balle par rapport au robot,
     /// # Dépendances :
     /// - la caméra arrive à détecter la balle
-    ball_relative_position: Option<Vector2>,
+    ball_relative_position: Option<LocalCoordinates>,
 
     /// position *absolue* de la balle calculée par le robot ami,
     /// Cette valeur sert surtout si la balle est trop loin pour être bien
@@ -62,10 +62,10 @@ struct Informations {
     /// # Dépendances :
     /// - bluetooth entre les deux robots
     /// - la caméra de l'autre robot arrive à détecter la balle
-    friend_ball_position: Option<Vector2>,
+    friend_ball_position: Option<GlobalCoordinates>,
 
     robot_has_ball: bool,
-    friend_has_ball: bool,
+    friend_has_ball: Option<bool>,
 
     /// tuple des 2 positions des robots adverses
     /// l'une des positions peut-être disponible et l'autre non.
@@ -73,14 +73,14 @@ struct Informations {
     /// l'est aussi.
     /// # Dépendances :
     /// - lidar analyzer NG
-    enemy_positions: (Option<Vector2>, Option<Vector2>),
+    enemy_positions: (Option<GlobalCoordinates>, Option<GlobalCoordinates>),
 }
 
 /// Représente l'ensemble des actions à faire par le robot qui ont été décidés par les stratégies
 #[derive(Debug)]
 struct Action {
     /// la position vers laquelle on voudrait aller
-    move_to: Vector2, //TODO : prise en charge Action sans pos du robot
+    move_to: LocalCoordinates, //TODO : prise en charge Action sans pos du robot
     /// l'orientation final que l'on voudra avoir lorsque l'on aura atteint cette position
     final_orientation: Rad32,
     /// est-ce que on active le kicker pour lancer la balle
