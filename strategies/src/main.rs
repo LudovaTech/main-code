@@ -1,7 +1,7 @@
 //mod consts;
 mod vector2;
-use vector2::Vector2;
 use radians::Rad32;
+use vector2::Vector2;
 
 /// Ce struct contient l'ensemble des données qui sont passés
 /// à l'algorithme des stratégies.
@@ -100,7 +100,9 @@ fn main() {
 fn decision(info: &Informations) -> Action {
     if let Some(refrain) = is_outside(info) {
         return refrain;
-    }
+    } else {
+        detecter_obstacles(choose_position(info));
+    };    
 }
 
 fn is_outside(info: &Informations) -> Option<Action> {
@@ -128,7 +130,9 @@ fn is_outside(info: &Informations) -> Option<Action> {
                 new_orientation = robot_angle + Rad32::QUARTER_TURN;
             }
 
-            if robot_angle >= Rad32::HALF_TURN && robot_angle < (Rad32::HALF_TURN + Rad32::QUARTER_TURN) {
+            if robot_angle >= Rad32::HALF_TURN
+                && robot_angle < (Rad32::HALF_TURN + Rad32::QUARTER_TURN)
+            {
                 // o entre 180 et 270
                 // pos : x+5 ; y - 5
                 //o : o - 90
@@ -136,7 +140,9 @@ fn is_outside(info: &Informations) -> Option<Action> {
                 new_orientation = robot_angle - Rad32::QUARTER_TURN;
             }
 
-            if robot_angle >= (Rad32::HALF_TURN + Rad32::QUARTER_TURN) && robot_angle < Rad32::FULL_TURN {
+            if robot_angle >= (Rad32::HALF_TURN + Rad32::QUARTER_TURN)
+                && robot_angle < Rad32::FULL_TURN
+            {
                 // o entre 270 et 0
                 // pos : x+5 ; y + 5
                 //o : o + 90
@@ -156,4 +162,173 @@ fn is_outside(info: &Informations) -> Option<Action> {
     } else {
         return None;
     } //TO DO
+}
+
+fn choose_position(info: &Informations) -> Action {
+    if let Some(robot_position) = info.robot_position {
+        if info.robot_has_ball {
+
+            let mut new_position = Vector2::new(0.0, 0.0);
+            let mut new_orientation = Rad32::ZERO;
+            let mut kick_decision = 0;
+
+            if robot_position.y >= 70.0 {
+                // coordonnées cages adverses  G : -53 ; 91.5    D : 53  ; 91.5 il faut que le robot soit en face des cages sinon changer orientation
+                if robot_position.x > -53 && robot_position.x < 53 {
+                    //pos = position actuelle
+                    //o = orientation 0.0
+                    //tirer
+
+                    new_position = robot_position;
+                    new_orientation = 0.0;
+                    kick_decision = -1;
+
+                } else if robot_position.x >= 53.0 {
+                    let CdR = (robot_position - Vector2::new(53, 91.5)).length();
+                    let CdD =
+                        (Vector2::new(53, 91.5) - Vector2::new(53, robot_position.y)).length();
+                    let R = ((Vector2::new(53, robot_position.y) - robot_position).length() / CdR)
+                        .acos();
+
+                    if R <= 45 {
+                        //pos = pos actuelle
+                        //o = 360 - 90 + R
+                        //tirer
+                        new_position = robot_position;
+                        new_orientation = 0.0; //à changer
+                        kick_decision = -1;
+                    } else {
+                        //pos = Vector2::new(50, robot_position.y),
+                        //o = 0.0
+                        //ne pas tirer
+                        new_position = Vector2::new(50, robot_position.y);
+                        new_orientation = 0.0;
+                        kick_decision = 0;
+                    }
+                } else if robot_position.x <= -53 {
+                    let CgR = (robot_position - Vector2::new(-53, 91.5)).length();
+                    let CgD = 
+                        (Vector2::new(-53, 91.5) - Vector2::new(-53, robot_position.y)).length();
+                    let R = ((Vector2::new(-53, robot_position.y) - robot_position).length() / CgR)
+                        .acos();
+
+                    if R <= 45 {
+                        //pos = robot.position
+                        //o = 90 - R
+                        //tirer
+                        new_position = robot_position;
+                        new_orientation = 0.0; //à changer en pi - R
+                        kick_decision = -1;
+                    } else {
+                        //pos = Vector2::new(-50, robot_position.y),
+                        //o = 0.0
+                        //ne pas tirer
+                        new_position = Vector2::new(-50, robot_position.y);
+                        new_orientation = 0.0;
+                        kick_decision = 0;
+                    }
+                }
+                
+            }
+        return Action {
+            move_to: new_position,
+            final_orientation: new_orientation,
+            kick: kick_decision,
+            dribbler: 0,
+        };        
+        }
+    } else {
+        if let Some(ball_pos) = info.ball_relative_position.or(info.friend_ball_position) {
+            return Action {
+                move_to: ball_pos,
+                final_orientation: 0.0,
+                kick: false,
+                dribbler: 255,
+            };
+        } else {
+            return Action {
+                move_to: Vector2::new(0, 0), //à changer
+                final_orientation: 0.0,
+                kick: false,
+                dribbler: 0,
+            };
+        }
+    }
+}
+
+fn detecter_obstacles(info: &Informations) -> Action {
+    //recup position dans Action de choose_position
+    if let Some(robot_position) = info.robot_position {
+        let action = choose_position(info);
+        let destination = action.move_to;
+        let mut position = Vector2::new(robot_position.x, robot_position.y);
+
+        if let Some(friend_position) = info.friend_position {
+            let x_r = robot_position.x;
+            let y_r = robot_position.y;
+            let x_o = friend_position.x;
+            let y_o = friend_position.y;
+            let x_d = destination.x;
+            let y_d = destination.y;
+
+            position = tester_obstacles(x_r, y_r, x_o, y_o, x_d, y_d);
+
+        }
+
+        if let Some(enemy_positions) = info.enemy_positions {
+            let x_r = robot_position.x;
+            let y_r = robot_position.y;
+            let x_o = enemy_positions.0.x;
+            let y_o = enemy_positions.0.y;
+            let x_d = destination.x;
+            let y_d = destination.y;
+
+            position = tester_obstacles(x_r, y_r, x_o, y_o, x_d, y_d);
+
+            let x_r = robot_position.x;
+            let y_r = robot_position.y;
+            let x_o = enemy_positions.1.x;
+            let y_o = enemy_positions.1.y;
+            let x_d = destination.x;
+            let y_d = destination.y;
+
+            position = tester_obstacles(x_r, y_r, x_o, y_o, x_d, y_d);
+        }
+
+        return Action {
+            move_to: position,
+            final_orientation: action.final_orientation,
+            kick: action.kick,
+            dribbler: action.dribbler,
+        }
+
+    } else { 
+        return None;
+    }
+    
+
+}
+
+fn tester_obstacles(x_r: f32, y_r: f32, x_o: f32, y_o: f32, x_d: f32, y_d: f32) -> Option<Action> {
+    let mut new_position = Vector2::new(0.0, 0.0);
+    if x_r = x_d {
+        //si |x_r - x_o| <= 9 && |y_o - y_d|
+        if (x_r - x_o).abs() <= 9 && (y_o - y_d).abs() <= 9 { //verif (y_o - y_d).abs() <= 9
+            new_position = Vector2::new(x_r, y_r + 5.0); //à changer pour que se soit obstacle + 9 vers le centre
+        } else {
+            new_position = Vector2::new(x_d, y_d); 
+    
+    } else {
+        let y_lo = calculer_eq_droite(x_r, y_r, x_d, y_d, x_o);
+        if (y_o - y_lo).abs() <= 9 {
+            new_position = Vector2::new(x_r, y_r + 5.0); //à changer pour que se soit obstacle + 9 vers le centre
+        } else {
+            new_position = Vector2::new(x_d, y_d); 
+        }
+    }
+}
+
+fn calculer_eq_droite(xr: f32, yr: f32, xd: f32, yd: f32, xo: f32) -> (f32) {
+    let y = ((yd - yr) * xo + yr * yd - yd * yr) / (xd - xr);
+    (y)
 }
