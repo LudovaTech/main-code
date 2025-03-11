@@ -7,21 +7,21 @@ use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
 /// Valeurs par défaut des pins moteur
-const FR_PWM: u8 = 0;
-const FR_CWCCW: u8 = 0;
-const FR_ANGLE: f32 = 0.0;
-const FL_PWM: u8 = 0;
-const FL_CWCCW: u8 = 0;
-const FL_ANGLE: f32 = 0.0;
-const BR_PWM: u8 = 0;
-const BR_CWCCW: u8 = 0;
-const BR_ANGLE: f32 = 0.0;
-const BL_PWM: u8 = 0;
-const BL_CWCCW: u8 = 0;
-const BL_ANGLE: f32 = 0.0;
+const FR_PWM: u8 = 23;
+const FR_CWCCW: u8 = 24;
+const FR_ANGLE: f32 = -0.698132;
+const FL_PWM: u8 = 27;
+const FL_CWCCW: u8 = 22;
+const FL_ANGLE: f32 = 0.698132;
+const BR_PWM: u8 = 17;
+const BR_CWCCW: u8 = 5;
+const BR_ANGLE: f32 = -2.44346;
+const BL_PWM: u8 = 16;
+const BL_CWCCW: u8 = 4;
+const BL_ANGLE: f32 = 2.44346;
 
 /// fréquence par défaut du PWM
-const PWM_DEFAULT_PERIOD: f64 = 1000.0;
+const PWM_DEFAULT_PERIOD: f64 = 10000.0;
 
 /// pins par défaut pour le kicker et le dribbler
 const DRIBBLER_PWM: u8 = 0;
@@ -90,7 +90,7 @@ impl Wheel {
             }
             if self
                 .pwm
-                .set_pwm_frequency(PWM_DEFAULT_PERIOD, speed.abs() as f64)
+                .set_pwm_frequency(PWM_DEFAULT_PERIOD, 1.0 - speed.abs() as f64)
                 .is_err()
             {
                 error!("Attrapé. Impossible de changer la valeur du PWM moteur, la vitesse du moteur reste inchangée.");

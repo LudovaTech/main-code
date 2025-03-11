@@ -4,6 +4,8 @@ mod vector2;
 use motors::Bogie;
 use std::error::Error;
 
+use crate::vector2::Vector2;
+use radians::{Angle, Rad32};
 use std::fs::OpenOptions;
 use tracing::{info, subscriber};
 use tracing_panic::panic_hook;
@@ -32,6 +34,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     set_up_logging()?;
     let mut bogie = Bogie::default().unwrap();
     info!("init ok");
-    bogie.front_right.rotate(0.5);
+    bogie.go_to(Vector2::new(1.0, 1.0), 1.0, Rad32::new(1.0));
+    loop {
+ 
+    }
     Ok(())
 }
