@@ -8,7 +8,7 @@ pub type Vector2 = nalgebra::Vector2<f32>;
 
 // Représente une coordonée dont l'origine est le centre du robot et l'orientation y suit l'axe du kicker
 #[derive(Debug, Clone, Copy)]
-pub struct LocalCoord(Vector2);
+pub struct LocalCoord(pub Vector2);
 
 impl LocalCoord {
     pub fn to_global_coordinates(&self, robot_position: GlobalCoord) -> GlobalCoord {
@@ -18,7 +18,7 @@ impl LocalCoord {
 
 // Représente une coordonée dont l'origine est le centre du terrain et l'orientation y se dirige vers le goal adverse
 #[derive(Debug, Clone, Copy)]
-pub struct GlobalCoord(Vector2);
+pub struct GlobalCoord(pub Vector2);
 
 impl GlobalCoord {
     pub fn to_local_coordinates(&self, robot_position: GlobalCoord) -> LocalCoord {
