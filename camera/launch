@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Penser à :
+# Pour libcamera :
+#    sudo apt-get install libclang-dev
+#    script de github libcamera-rs pour installer libcamera 0.3.2
+# Pour opencv :
+#    sudo apt-get install libopencv-dev
+#    sudo apt install llvm-dev libclang-dev clang
+
+ip_addr=192.168.1.35
+
+echo "transferring file..."
+
+rsync -av --exclude='target' ./** robot@$ip_addr:/home/robot/prog/cam/
+
+if [ $? -eq 0 ]; then
+    echo "done."
+else
+    echo "an error occurred when transferring files."
+    exit 1
+fi
+
+ssh robot@$ip_addr 'cd /home/robot/prog/cam; export PATH="/home/robot/.cargo/bin:$PATH"; cargo run'
+
+if [ $? -eq 0 ]; then
+    echo "started."
+else
+    echo "an error occurred during compilation."
+    exit 1
+fi
