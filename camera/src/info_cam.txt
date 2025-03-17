@@ -1,0 +1,2628 @@
+Camera 0
+ID: /base/soc/i2c0mux/i2c@1/imx477@1a
+Properties: {
+    SystemDevices: SystemDevices(
+        [
+            20750,
+            20751,
+            20737,
+            20739,
+            20740,
+        ],
+    ),
+    ScalerCropMaximum: ScalerCropMaximum(
+        Rectangle {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+        },
+    ),
+    PixelArrayActiveAreas: PixelArrayActiveAreas(
+        [
+            Rectangle {
+                x: 8,
+                y: 16,
+                width: 4056,
+                height: 3040,
+            },
+        ],
+    ),
+    PixelArraySize: PixelArraySize(
+        Size {
+            width: 4056,
+            height: 3040,
+        },
+    ),
+    Rotation: Rotation(
+        180,
+    ),
+    Location: CameraExternal,
+    ColorFilterArrangement: RGGB,
+    UnitCellSize: UnitCellSize(
+        Size {
+            width: 1550,
+            height: 1550,
+        },
+    ),
+    Model: Model(
+        "imx477",
+    ),
+}
+Available formats: {
+    NV21: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    YUV420: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    NV12: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    YVU420: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    XBGR8888: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    BGR888: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    RGB888: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    XRGB8888: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    RGB565: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    YVYU: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    YUYV: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    VYUY: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+    UYVY: [
+        Size {
+            width: 160,
+            height: 120,
+        },
+        Size {
+            width: 240,
+            height: 160,
+        },
+        Size {
+            width: 320,
+            height: 240,
+        },
+        Size {
+            width: 400,
+            height: 240,
+        },
+        Size {
+            width: 480,
+            height: 320,
+        },
+        Size {
+            width: 640,
+            height: 360,
+        },
+        Size {
+            width: 640,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 480,
+        },
+        Size {
+            width: 768,
+            height: 480,
+        },
+        Size {
+            width: 854,
+            height: 480,
+        },
+        Size {
+            width: 720,
+            height: 576,
+        },
+        Size {
+            width: 800,
+            height: 600,
+        },
+        Size {
+            width: 960,
+            height: 540,
+        },
+        Size {
+            width: 1024,
+            height: 576,
+        },
+        Size {
+            width: 960,
+            height: 640,
+        },
+        Size {
+            width: 1024,
+            height: 600,
+        },
+        Size {
+            width: 1024,
+            height: 768,
+        },
+        Size {
+            width: 1280,
+            height: 720,
+        },
+        Size {
+            width: 1152,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 800,
+        },
+        Size {
+            width: 1360,
+            height: 768,
+        },
+        Size {
+            width: 1366,
+            height: 768,
+        },
+        Size {
+            width: 1440,
+            height: 900,
+        },
+        Size {
+            width: 1280,
+            height: 1024,
+        },
+        Size {
+            width: 1536,
+            height: 864,
+        },
+        Size {
+            width: 1280,
+            height: 1080,
+        },
+        Size {
+            width: 1600,
+            height: 900,
+        },
+        Size {
+            width: 1400,
+            height: 1050,
+        },
+        Size {
+            width: 1680,
+            height: 1050,
+        },
+        Size {
+            width: 1600,
+            height: 1200,
+        },
+        Size {
+            width: 1920,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1080,
+        },
+        Size {
+            width: 1920,
+            height: 1200,
+        },
+        Size {
+            width: 2160,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1152,
+        },
+        Size {
+            width: 2560,
+            height: 1080,
+        },
+        Size {
+            width: 2048,
+            height: 1536,
+        },
+        Size {
+            width: 2560,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 1600,
+        },
+        Size {
+            width: 3840,
+            height: 1080,
+        },
+        Size {
+            width: 2960,
+            height: 1440,
+        },
+        Size {
+            width: 3440,
+            height: 1440,
+        },
+        Size {
+            width: 2560,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 1800,
+        },
+        Size {
+            width: 3840,
+            height: 1600,
+        },
+        Size {
+            width: 3200,
+            height: 2048,
+        },
+        Size {
+            width: 3200,
+            height: 2400,
+        },
+        Size {
+            width: 3840,
+            height: 2160,
+        },
+        Size {
+            width: 3840,
+            height: 2400,
+        },
+    ],
+}
+----------------------------------------
