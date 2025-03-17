@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     set_up_logging()?;
     let mut bogie = Bogie::default().unwrap();
     info!("init ok");
-    bogie.go_to(Vector2::new(1.0, 1.0), 1.0, Rad32::new(1.0));
+    bogie.go_to(Vector2::new(1.0, 1.0), 0.4, Rad32::new(0.0));
     loop {
  
     }
