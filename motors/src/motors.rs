@@ -34,6 +34,8 @@ const TIME_BETWEEN_KICK: Duration = Duration::from_secs(2);
 /// temps d'un kick (temps où on donne de l'énergie aux pins)
 const KICK_TIME: Duration = Duration::from_millis(40);
 
+const COEF_ROTATION_SPEED: f32 = 0.6;
+
 /// Représente un moteur entrainant une roue
 /// Ancien nom MotorMov
 #[derive(Debug)]
@@ -132,7 +134,7 @@ impl Bogie {
 
     #[instrument]
     pub fn go_to(&mut self, to_local: Vector2, speed: f32, orientation: Rad32) -> () {
-        const ABCSISSE: Vector2 = Vector2::new(1.0, 0.0);
+        const ABCSISSE: Vector2 = Vector2::new(0.0, 1.0);
 
         // The speed to be sent to the motors is calculated
         let to_local_angle = Rad32::new(to_local.angle(&ABCSISSE));
@@ -155,8 +157,8 @@ impl Bogie {
         bl_speed *= rapport;
 
         let minimum = fr_speed.min(fl_speed.min(br_speed.min(bl_speed)));
-        let rotation = orientation * speed * 0.6; // TODO Why 0.6 ?
-
+        let rotation = orientation * speed * COEF_ROTATION_SPEED;
+        
         if minimum - rotation.val() < -1.0 {
             let rapport = (rotation.val() - 1.0) / minimum;
             fr_speed *= rapport;
