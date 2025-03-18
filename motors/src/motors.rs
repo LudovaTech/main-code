@@ -4,9 +4,9 @@ use rppal::gpio::{Gpio, OutputPin};
 use std::error::Error;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
-/// Valeurs par défaut des pins moteur
+/// Valeurs par dÃ©faut des pins moteur
 const FR_PWM: u8 = 23;
 const FR_CWCCW: u8 = 24;
 const FR_ANGLE: f32 = -0.698132;
@@ -20,23 +20,23 @@ const BL_PWM: u8 = 16;
 const BL_CWCCW: u8 = 4;
 const BL_ANGLE: f32 = 2.44346;
 
-/// fréquence par défaut du PWM
-const PWM_DEFAULT_PERIOD: f64 = 10000.0;
+/// frÃ©quence par dÃ©faut du PWM
+const PWM_DEFAULT_PERIOD: f64 = 500.0;
 
-/// pins par défaut pour le kicker et le dribbler
-const DRIBBLER_PWM: u8 = 0;
-const DRIBBLER_CWCCW: u8 = 0;
+/// pins par dÃ©faut pour le kicker et le dribbler
+const DRIBBLER_PWM: u8 = 26;
+const DRIBBLER_CWCCW: u8 = 6;
 const KICKER_PIN1: u8 = 0;
 const KICKER_PIN2: u8 = 0;
 
 /// temps min entre deux kicks
 const TIME_BETWEEN_KICK: Duration = Duration::from_secs(2);
-/// temps d'un kick (temps où on donne de l'énergie aux pins)
+/// temps d'un kick (temps oÃ¹ on donne de l'Ã©nergie aux pins)
 const KICK_TIME: Duration = Duration::from_millis(40);
 
 const COEF_ROTATION_SPEED: f32 = 0.6;
 
-/// Représente un moteur entrainant une roue
+/// ReprÃ©sente un moteur entrainant une roue
 /// Ancien nom MotorMov
 #[derive(Debug)]
 pub struct Wheel {
@@ -95,10 +95,10 @@ impl Wheel {
                 .set_pwm_frequency(PWM_DEFAULT_PERIOD, 1.0 - speed.abs() as f64)
                 .is_err()
             {
-                error!("Attrapé. Impossible de changer la valeur du PWM moteur, la vitesse du moteur reste inchangée.");
+                error!("AttrapÃ©. Impossible de changer la valeur du PWM moteur, la vitesse du moteur reste inchangÃ©e.");
             }
         } else {
-            error!("Attrapé. Valeur de vitesse '{speed}' incorrecte.");
+            error!("AttrapÃ©. Valeur de vitesse '{speed}' incorrecte.");
         }
     }
 
@@ -132,12 +132,18 @@ impl Bogie {
         self.back_left.stop();
     }
 
-    #[instrument]
     pub fn go_to(&mut self, to_local: Vector2, speed: f32, orientation: Rad32) -> () {
         const ABCSISSE: Vector2 = Vector2::new(0.0, 1.0);
 
         // The speed to be sent to the motors is calculated
-        let to_local_angle = Rad32::new(to_local.angle(&ABCSISSE));
+        let to_local_angle = Rad32::new(to_local.angle(&ABCSISSE)) * {
+            if to_local.x > 0.0 {
+                -1.0
+            } else {
+                1.0
+            }
+        };
+        debug!("to local angle {to_local_angle}");
         let mut fr_speed = (to_local_angle - self.front_right.angle_axis_kicker).cos();
         let mut fl_speed = (to_local_angle - self.front_left.angle_axis_kicker).cos();
         let mut br_speed = (to_local_angle - self.back_right.angle_axis_kicker).cos();
@@ -158,7 +164,7 @@ impl Bogie {
 
         let minimum = fr_speed.min(fl_speed.min(br_speed.min(bl_speed)));
         let rotation = orientation * speed * COEF_ROTATION_SPEED;
-        
+
         if minimum - rotation.val() < -1.0 {
             let rapport = (rotation.val() - 1.0) / minimum;
             fr_speed *= rapport;
@@ -166,6 +172,15 @@ impl Bogie {
             br_speed *= rapport;
             bl_speed *= rapport;
         }
+
+        let fr_val = fr_speed - rotation.val();
+        let fl_val = fl_speed - rotation.val();
+        let br_val = br_speed - rotation.val();
+        let bl_val = bl_speed - rotation.val();
+        debug!("fr: {fr_val}");
+        debug!("fl: {fl_val}");
+        debug!("br: {br_val}");
+        debug!("bl: {bl_val}");
 
         self.front_right.rotate(fr_speed - rotation.val());
         self.front_left.rotate(fl_speed - rotation.val());
@@ -225,7 +240,7 @@ impl BallControl {
     fn perform_kick(&mut self) {
         self.kicker1.set_high();
         self.kicker2.set_high();
-        sleep(KICK_TIME); // TODO : C'est pas bien d'arrêter tout le code pour le kick
+        sleep(KICK_TIME); // TODO : C'est pas bien d'arrÃªter tout le code pour le kick
         self.kicker1.set_low();
         self.kicker2.set_low();
     }

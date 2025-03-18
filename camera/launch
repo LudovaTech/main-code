@@ -29,3 +29,5 @@ else
     echo "an error occurred during compilation."
     exit 1
 fi
+
+pscp -r . robot@10.87.216.195:/home/robot/prog/motors
