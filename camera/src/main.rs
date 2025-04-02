@@ -13,19 +13,21 @@ use libcamera::{
 
 use opencv::{
     core::{Mat, MatTrait, Size, Vector},
-    highgui,
-    imgproc,
+    highgui, imgproc,
     prelude::*,
     Result,
 };
 
 /// Définir le format NV12 via ses 4 octets.
 /// Si libcamera fournit déjà une constante pour NV12, vous pouvez l'utiliser directement.
-const PIXEL_FORMAT_NV12: PixelFormat = PixelFormat::new(u32::from_le_bytes([b'N', b'V', b'1', b'2']), 0);
+const PIXEL_FORMAT_NV12: PixelFormat =
+    PixelFormat::new(u32::from_le_bytes([b'N', b'V', b'1', b'2']), 0);
 
 fn main() -> Result<()> {
     // L'argument n'est plus le nom du fichier, mais simplement pour lancer l'application.
-    let _arg = std::env::args().nth(1).unwrap_or_else(|| "nv12_display".to_string());
+    let _arg = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "nv12_display".to_string());
 
     // Création et récupération de la caméra
     let mgr = CameraManager::new().unwrap();
@@ -38,20 +40,22 @@ fn main() -> Result<()> {
     let mut cam = cam.acquire().expect("Impossible d'acquérir la caméra");
 
     // Génération de la configuration par défaut pour le rôle ViewFinder
-    let mut cfgs = cam.generate_configuration(&[StreamRole::ViewFinder]).unwrap();
-
-    // On définit le format pixel NV12
-    cfgs.get_mut(0)
-        .unwrap()
-        .set_pixel_format(PIXEL_FORMAT_NV12);
+    let mut cfgs = cam
+        .generate_configuration(&[StreamRole::ViewFinder])
+        .unwrap();
+    cfgs.get_mut(0).unwrap().set_pixel_format(PIXEL_FORMAT_NV12);
 
     println!("Configuration générée : {:#?}", cfgs);
 
     // Validation de la configuration
     match cfgs.validate() {
         CameraConfigurationStatus::Valid => println!("Configuration de la caméra valide !"),
-        CameraConfigurationStatus::Adjusted => println!("La configuration a été ajustée : {:#?}", cfgs),
-        CameraConfigurationStatus::Invalid => panic!("Erreur lors de la validation de la configuration"),
+        CameraConfigurationStatus::Adjusted => {
+            println!("La configuration a été ajustée : {:#?}", cfgs)
+        }
+        CameraConfigurationStatus::Invalid => {
+            panic!("Erreur lors de la validation de la configuration")
+        }
     }
 
     // Vérifier que le format est bien NV12
@@ -62,15 +66,15 @@ fn main() -> Result<()> {
     );
 
     // Récupération des dimensions de l'image à partir de la configuration
-    let cfg = cfgs.get(0).unwrap();
-    let width = cfg.size.width as i32;
-    let height = cfg.size.height as i32;
+    let width = cfgs.get(0).unwrap().get_size().width as i32;
+    let height = cfgs.get(0).unwrap().get_size().height as i32;
     println!("Dimensions de l'image: {}x{}", width, height);
 
     // Configuration de la caméra et allocation des buffers
-    cam.configure(&mut cfgs).expect("Impossible de configurer la caméra");
+    cam.configure(&mut cfgs)
+        .expect("Impossible de configurer la caméra");
     let mut alloc = FrameBufferAllocator::new(&cam);
-    let stream = cfg.stream().unwrap();
+    let stream = cfgs.get(0).unwrap().stream().unwrap();
     let buffers = alloc.alloc(&stream).unwrap();
     println!("{} buffers alloués", buffers.len());
 
@@ -102,7 +106,9 @@ fn main() -> Result<()> {
     cam.queue_request(reqs.pop().unwrap()).unwrap();
 
     println!("En attente d'une capture...");
-    let req = rx.recv_timeout(Duration::from_secs(2)).expect("La capture a échoué");
+    let req = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("La capture a échoué");
     println!("Capture terminée!");
     println!("Métadonnées: {:#?}", req.metadata());
 
@@ -134,20 +140,13 @@ fn main() -> Result<()> {
     let nv12_mat = Mat::new_rows_cols_with_data(
         total_height,
         width,
-        opencv::core::CV_8UC1,
-        nv12_data.as_ptr() as *mut _,
-        opencv::core::Mat_AUTO_STEP,
+        &nv12_data, // Pass a reference to the Vec
     )?;
 
     // Convertir le NV12 en BGR pour affichage.
     // cvtColor supporte la conversion depuis COLOR_YUV2BGR_NV12.
     let mut bgr_mat = Mat::default();
-    imgproc::cvt_color(
-        &nv12_mat,
-        &mut bgr_mat,
-        imgproc::COLOR_YUV2BGR_NV12,
-        0,
-    )?;
+    imgproc::cvt_color(&nv12_mat, &mut bgr_mat, imgproc::COLOR_YUV2BGR_NV12, 0)?;
 
     // Afficher l'image convertie dans une fenêtre.
     highgui::named_window("Image NV12", highgui::WINDOW_AUTOSIZE)?;
