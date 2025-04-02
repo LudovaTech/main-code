@@ -3,7 +3,7 @@
 # Penser à :
 # Pour libcamera :
 #    sudo apt-get install libclang-dev
-#    script de github libcamera-rs pour installer libcamera 0.3.2
+#    script de github libcamera-rs pour installer libcamera 0.3.2 # https://github.com/lit-robotics/libcamera-rs/issues/56
 # Pour opencv :
 #    sudo apt-get install libopencv-dev
 #    sudo apt install llvm-dev libclang-dev clang
@@ -21,7 +21,7 @@ else
     exit 1
 fi
 
-ssh robot@$ip_addr 'cd /home/robot/prog/cam; export PATH="/home/robot/.cargo/bin:$PATH"; cargo run'
+ssh robot@$ip_addr 'cd /home/robot/prog/cam; export PATH="/home/robot/.cargo/bin:$PATH"; cargo run --verbose'
 
 if [ $? -eq 0 ]; then
     echo "started."
