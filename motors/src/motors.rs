@@ -6,37 +6,37 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, instrument, warn};
 
-/// Valeurs par dÃ©faut des pins moteur
-const FR_PWM: u8 = 23;
-const FR_CWCCW: u8 = 24;
+/// Valeurs par défaut des pins moteur
+const FR_PWM: u8 = 27;
+const FR_CWCCW: u8 = 22;
 const FR_ANGLE: f32 = -0.698132;
-const FL_PWM: u8 = 27;
-const FL_CWCCW: u8 = 22;
+const FL_PWM: u8 = 6;
+const FL_CWCCW: u8 = 26;
 const FL_ANGLE: f32 = 0.698132;
-const BR_PWM: u8 = 17;
-const BR_CWCCW: u8 = 5;
+const BR_PWM: u8 = 4;
+const BR_CWCCW: u8 = 17;
 const BR_ANGLE: f32 = -2.44346;
-const BL_PWM: u8 = 16;
-const BL_CWCCW: u8 = 4;
+const BL_PWM: u8 = 1;
+const BL_CWCCW: u8 = 16;
 const BL_ANGLE: f32 = 2.44346;
 
-/// frÃ©quence par dÃ©faut du PWM
+/// fréquence par défaut du PWM
 const PWM_DEFAULT_PERIOD: f64 = 500.0;
 
-/// pins par dÃ©faut pour le kicker et le dribbler
-const DRIBBLER_PWM: u8 = 26;
-const DRIBBLER_CWCCW: u8 = 6;
-const KICKER_PIN1: u8 = 0;
-const KICKER_PIN2: u8 = 0;
+/// pins par défaut pour le kicker et le dribbler
+const DRIBBLER_PWM: u8 = 23;
+const DRIBBLER_CWCCW: u8 = 25;
+const KICKER_PIN1: u8 = 5;
+const KICKER_PIN2: u8 = 24;
 
 /// temps min entre deux kicks
 const TIME_BETWEEN_KICK: Duration = Duration::from_secs(2);
-/// temps d'un kick (temps oÃ¹ on donne de l'Ã©nergie aux pins)
-const KICK_TIME: Duration = Duration::from_millis(40);
+/// temps d'un kick (temps où on donne de l'énergie aux pins)
+const KICK_TIME: Duration = Duration::from_millis(500);
 
 const COEF_ROTATION_SPEED: f32 = 0.6;
 
-/// ReprÃ©sente un moteur entrainant une roue
+/// Représente un moteur entrainant une roue
 /// Ancien nom MotorMov
 #[derive(Debug)]
 pub struct Wheel {
@@ -95,10 +95,10 @@ impl Wheel {
                 .set_pwm_frequency(PWM_DEFAULT_PERIOD, 1.0 - speed.abs() as f64)
                 .is_err()
             {
-                error!("AttrapÃ©. Impossible de changer la valeur du PWM moteur, la vitesse du moteur reste inchangÃ©e.");
+                error!("Attrapé. Impossible de changer la valeur du PWM moteur, la vitesse du moteur reste inchangée.");
             }
         } else {
-            error!("AttrapÃ©. Valeur de vitesse '{speed}' incorrecte.");
+            error!("Attrapé. Valeur de vitesse '{speed}' incorrecte.");
         }
     }
 
@@ -192,7 +192,7 @@ impl Bogie {
 /// S'occupe du dribler et du kicker
 /// ancien DriblerKicker
 #[derive(Debug)]
-struct BallControl {
+pub struct BallControl {
     dribbler: Wheel,
     kicker1: OutputPin,
     kicker2: OutputPin,
@@ -237,10 +237,10 @@ impl BallControl {
         }
     }
 
-    fn perform_kick(&mut self) {
+    pub fn perform_kick(&mut self) {
         self.kicker1.set_high();
         self.kicker2.set_high();
-        sleep(KICK_TIME); // TODO : C'est pas bien d'arrÃªter tout le code pour le kick
+        sleep(KICK_TIME); // TODO : C'est pas bien d'arrêter tout le code pour le kick
         self.kicker1.set_low();
         self.kicker2.set_low();
     }
