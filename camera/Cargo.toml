@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+image = "0.25.6"
+imageproc = "0.25.0"
 libcamera = "0.3.0"
 libcamera-sys = "0.3.0"
-opencv = { version = "0.94.2", features = ["clang-runtime"] }
 
 [profile.dev]
 incremental = true

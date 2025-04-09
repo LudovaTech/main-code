@@ -1,0 +1,147 @@
+use std::time::Duration;
+
+use libcamera::{
+    camera::CameraConfigurationStatus,
+    camera_manager::CameraManager,
+    framebuffer::AsFrameBuffer,
+    framebuffer_allocator::{FrameBuffer, FrameBufferAllocator},
+    framebuffer_map::MemoryMappedFrameBuffer,
+    pixel_format::PixelFormat,
+    properties,
+    stream::StreamRole,
+};
+
+use opencv::{
+    core::{Mat, MatTrait, Size, Vector},
+    highgui, imgproc,
+    prelude::*,
+    Result,
+};
+
+const PIXEL_FORMAT_NV12: PixelFormat =
+    PixelFormat::new(u32::from_le_bytes([b'N', b'V', b'1', b'2']), 0);
+
+fn main() -> Result<()> {
+    let _arg = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "nv12_display".to_string());
+
+    let mgr = CameraManager::new().unwrap();
+    let cameras = mgr.cameras();
+    let cam = cameras.get(0).expect("No camera found");
+    println!(
+        "Using camera: {}",
+        *cam.properties().get::<properties::Model>().unwrap()
+    );
+    let mut cam = cam.acquire().expect("Unable to acquire camera");
+
+    let mut cfgs = cam
+        .generate_configuration(&[StreamRole::ViewFinder])
+        .unwrap();
+    cfgs.get_mut(0).unwrap().set_pixel_format(PIXEL_FORMAT_NV12);
+    cfgs.get_mut(0).unwrap().set_size(libcamera::geometry::Size{width: 800, height: 480});
+
+    match cfgs.validate() {
+        CameraConfigurationStatus::Valid => println!("Camera configuration is valid!"),
+        CameraConfigurationStatus::Adjusted => {
+            println!("Configuration was adjusted: {:#?}", cfgs)
+        }
+        CameraConfigurationStatus::Invalid => {
+            panic!("Error validating configuration")
+        }
+    }
+
+    assert_eq!(
+        cfgs.get(0).unwrap().get_pixel_format(),
+        PIXEL_FORMAT_NV12,
+        "NV12 is not supported by the camera"
+    );
+
+    let width = cfgs.get(0).unwrap().get_size().width as i32;
+    let height = cfgs.get(0).unwrap().get_size().height as i32;
+    println!("Image dimensions: {}x{}", width, height);
+
+    cam.configure(&mut cfgs).expect("Unable to configure camera");
+    let mut alloc = FrameBufferAllocator::new(&cam);
+    let stream = cfgs.get(0).unwrap().stream().unwrap();
+    let buffers = alloc.alloc(&stream).unwrap();
+    println!("{} buffers allocated", buffers.len());
+
+    let buffers = buffers
+        .into_iter()
+        .map(|buf| MemoryMappedFrameBuffer::new(buf).unwrap())
+        .collect::<Vec<_>>();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    cam.start(None).unwrap();
+
+    // Queue initial requests
+    let mut reqs = Vec::new();
+    for buf in buffers {
+        let mut req = cam.create_request(None).unwrap();
+        req.add_buffer(&stream, buf).unwrap();
+        reqs.push(req);
+    }
+
+    // Start capturing in a loop
+    loop {
+        // Wait for a capture
+        let req = rx.recv_timeout(Duration::from_secs(2)); // Increase timeout if necessary
+
+        match req {
+            Ok(req) => {
+                println!("Capture completed!");
+                let framebuffer: &MemoryMappedFrameBuffer<FrameBuffer> = req.buffer(&stream).unwrap();
+                println!("FrameBuffer metadata: {:#?}", framebuffer.metadata());
+
+                let nb_planes = framebuffer.data().len();
+                println!("Number of planes in buffer: {}", nb_planes);
+
+                let mut nv12_data = Vec::new();
+                for (i, plane) in framebuffer.data().iter().enumerate() {
+                    let plane_info = framebuffer.metadata().unwrap().planes().get(i).unwrap();
+                    let bytes_used = plane_info.bytes_used as usize;
+                    println!("Plane {}: {} bytes used.", i, bytes_used);
+                    nv12_data.extend_from_slice(&plane[..bytes_used]);
+                }
+
+                let total_height = height + height / 2;
+
+                // Create a Mat CV_8UC1 of size total_height x width containing NV12 data.
+                let nv12_mat = Mat::new_rows_cols_with_data(
+                    total_height,
+                    width,
+                    &nv12_data, // Pass a reference to the Vec
+                )?;
+
+                // Convert NV12 to BGR for display.
+                let mut bgr_mat = Mat::default();
+                imgproc::cvt_color(&nv12_mat, &mut bgr_mat, imgproc::COLOR_YUV2BGR_NV12, 0)?;
+
+                    // Display the converted image in a window.
+                    highgui::named_window("Image NV12", highgui::WINDOW_AUTOSIZE)?;
+                    highgui::imshow("Image NV12", &bgr_mat)?;
+    
+                    // Wait for a short period to allow display.
+                    if highgui::wait_key(1)? >= 0 {
+                        break; // Exit the loop if a key is pressed.
+                    }
+    
+                    // Re-queue the request for the next frame
+                    cam.queue_request(req).unwrap();
+                },
+                Err(e) => {
+                    println!("Capture failed or timed out. {e}");
+                    break; // Exit the loop on error.
+                }
+            }
+        }
+    
+        // Clean up resources
+        cam.stop().unwrap();
+        println!("Camera stopped.");
+    
+        Ok(())
+    }
+    
