@@ -21,7 +21,7 @@ use imageproc::{
 };
 use imageproc::{drawing::draw_cross_mut, region_labelling::connected_components};
 
-use egui;
+use std::time::Instant;
 
 type RgbaBufferImage = ImageBuffer<Rgba<u8>, Vec<u8>>;
 type LumaBufferImage = ImageBuffer<Luma<u8>, Vec<u8>>;
@@ -185,26 +185,30 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     cam.start(None).unwrap();
 
+    let mut n: u32 = 0;
     loop {
+        let instant0 = Instant::now();
         cam.queue_request(reqs.pop().unwrap()).unwrap();
         // En attente d'une capture...
         let mut req = rx
             .recv_timeout(Duration::from_secs(2))
             .expect("La capture a échoué");
-        println!("Capture terminée!");
-        println!("Métadonnées: {:#?}", req.metadata());
+        // println!("Capture terminée!");
+        // println!("Métadonnées: {:#?}", req.metadata());
+
+        let instant1 = Instant::now();
 
         let framebuffer: &MemoryMappedFrameBuffer<FrameBuffer> = req.buffer(&stream).unwrap();
-        println!("Métadonnées du FrameBuffer: {:#?}", framebuffer.metadata());
+        // println!("Métadonnées du FrameBuffer: {:#?}", framebuffer.metadata());
 
         let nb_planes = framebuffer.data().len();
-        println!("Nombre de plans dans le buffer : {}", nb_planes);
+        // println!("Nombre de plans dans le buffer : {}", nb_planes);
 
         let mut nv12_data = Vec::new();
         for (i, plane) in framebuffer.data().iter().enumerate() {
             let plane_info = framebuffer.metadata().unwrap().planes().get(i).unwrap();
             let bytes_used = plane_info.bytes_used as usize;
-            println!("Plan {} : {} bytes utilisés.", i, bytes_used);
+            // println!("Plan {} : {} bytes utilisés.", i, bytes_used);
             nv12_data.extend_from_slice(&plane[..bytes_used]);
         }
 
@@ -230,8 +234,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //     .expect("Erreur lors de la sauvegarde de l'image");
 
     
-        dbg!(&req);
+        println!("frame {}, time {:?} {:?}", n, instant1 - instant0, Instant::now() - instant1);
         req.reuse(ReuseFlag::REUSE_BUFFERS);
-        reqs.push(req)
+        reqs.push(req);
+        n += 1;
     }
 }
