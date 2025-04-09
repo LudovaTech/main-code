@@ -102,8 +102,8 @@ fn draw_contour(rgb_data: &mut RgbaBufferImage, contours: &Vec<Contour<u32>>) {
 }
 
 #[inline]
-fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(f32, f32)> {
-    let mut centers: Vec<(f32, f32)> = Vec::new();
+fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(u32, f32, f32)> {
+    let mut centers: Vec<(u32, f32, f32)> = Vec::new();
 
     for contour in contours.iter() {
         let mut sum_x = 0.0;
@@ -117,8 +117,9 @@ fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(f32, f32)> {
         let center_x = sum_x / contour.points.len() as f32;
         let center_y = sum_y / contour.points.len() as f32;
 
-        centers.push((center_x, center_y));
+        centers.push((contour.points.len() as u32, center_x, center_y));
     }
+    centers.sort_by_key(|e| e.0);
     centers
 }
 
@@ -222,19 +223,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let centers = compute_centers(&contours);
 
-        for (x, y) in centers.iter() {
+        for (_, x, y) in centers.iter() {
             draw_marker(&mut rgb_data, (x.round() as i32, y.round() as i32));
         }
 
         draw_contour(&mut rgb_data, &contours);
 
         // // Sauvegarder l'image résultante
-        // rgb_data
-        //     .save("output_image_with_mask.png")
-        //     .expect("Erreur lors de la sauvegarde de l'image");
+        rgb_data
+            .save("output_image_with_mask.png")
+            .expect("Erreur lors de la sauvegarde de l'image");
 
     
         println!("frame {}, time {:?} {:?}", n, instant1 - instant0, Instant::now() - instant1);
+        println!("{:?}", centers[0]);
         req.reuse(ReuseFlag::REUSE_BUFFERS);
         reqs.push(req);
         n += 1;
