@@ -2,6 +2,7 @@ use std::time::Duration;
 use std::{collections::HashMap, error::Error};
 
 use imageproc::contours::Contour;
+use libcamera::request::ReuseFlag;
 use libcamera::{
     camera::CameraConfigurationStatus,
     camera_manager::CameraManager,
@@ -13,12 +14,14 @@ use libcamera::{
     stream::StreamRole,
 };
 
-use image::{ImageBuffer, Luma, Rgba, RgbaImage};
+use image::{DynamicImage, ImageBuffer, Luma, Rgba, RgbaImage};
 use imageproc::{
     contours::find_contours,
     drawing::{draw_filled_circle_mut, draw_hollow_circle_mut},
 };
 use imageproc::{drawing::draw_cross_mut, region_labelling::connected_components};
+
+use egui;
 
 type RgbaBufferImage = ImageBuffer<Rgba<u8>, Vec<u8>>;
 type LumaBufferImage = ImageBuffer<Luma<u8>, Vec<u8>>;
@@ -46,11 +49,7 @@ fn yuyv444_to_rgba(y: i32, u: i32, v: i32) -> [u8; 4] {
 }
 
 #[inline]
-fn nv12_to_rgba_buffer(
-    width: u32,
-    height: u32,
-    nv12_data: &Vec<u8>,
-) -> RgbaBufferImage {
+fn nv12_to_rgba_buffer(width: u32, height: u32, nv12_data: &Vec<u8>) -> RgbaBufferImage {
     ImageBuffer::from_fn(width, height, |x, y| {
         // Convertir NV12 en RGBA
         let frame_size = width * height;
@@ -103,11 +102,10 @@ fn draw_contour(rgb_data: &mut RgbaBufferImage, contours: &Vec<Contour<u32>>) {
 }
 
 #[inline]
-fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(f32, f32)>{
+fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(f32, f32)> {
     let mut centers: Vec<(f32, f32)> = Vec::new();
 
     for contour in contours.iter() {
-
         let mut sum_x = 0.0;
         let mut sum_y = 0.0;
 
@@ -123,7 +121,6 @@ fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(f32, f32)>{
     }
     centers
 }
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mgr = CameraManager::new().unwrap();
@@ -187,50 +184,54 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     cam.start(None).unwrap();
-    cam.queue_request(reqs.pop().unwrap()).unwrap();
 
-    println!("En attente d'une capture...");
-    let req = rx
-        .recv_timeout(Duration::from_secs(2))
-        .expect("La capture a échoué");
-    println!("Capture terminée!");
-    println!("Métadonnées: {:#?}", req.metadata());
+    loop {
+        cam.queue_request(reqs.pop().unwrap()).unwrap();
+        // En attente d'une capture...
+        let mut req = rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("La capture a échoué");
+        println!("Capture terminée!");
+        println!("Métadonnées: {:#?}", req.metadata());
 
-    let framebuffer: &MemoryMappedFrameBuffer<FrameBuffer> = req.buffer(&stream).unwrap();
-    println!("Métadonnées du FrameBuffer: {:#?}", framebuffer.metadata());
+        let framebuffer: &MemoryMappedFrameBuffer<FrameBuffer> = req.buffer(&stream).unwrap();
+        println!("Métadonnées du FrameBuffer: {:#?}", framebuffer.metadata());
 
-    let nb_planes = framebuffer.data().len();
-    println!("Nombre de plans dans le buffer : {}", nb_planes);
+        let nb_planes = framebuffer.data().len();
+        println!("Nombre de plans dans le buffer : {}", nb_planes);
 
-    let mut nv12_data = Vec::new();
-    for (i, plane) in framebuffer.data().iter().enumerate() {
-        let plane_info = framebuffer.metadata().unwrap().planes().get(i).unwrap();
-        let bytes_used = plane_info.bytes_used as usize;
-        println!("Plan {} : {} bytes utilisés.", i, bytes_used);
-        nv12_data.extend_from_slice(&plane[..bytes_used]);
+        let mut nv12_data = Vec::new();
+        for (i, plane) in framebuffer.data().iter().enumerate() {
+            let plane_info = framebuffer.metadata().unwrap().planes().get(i).unwrap();
+            let bytes_used = plane_info.bytes_used as usize;
+            println!("Plan {} : {} bytes utilisés.", i, bytes_used);
+            nv12_data.extend_from_slice(&plane[..bytes_used]);
+        }
+
+        let mut rgb_data: RgbaBufferImage = nv12_to_rgba_buffer(width, height, &nv12_data);
+
+        let mask = create_color_mask(width, height, &rgb_data);
+
+        let mut contours = find_contours::<u32>(&mask);
+
+        contours.retain(|e| e.points.len() > 30); // TODO: paramètre, on filtre pour éviter les zones trop petites
+
+        let centers = compute_centers(&contours);
+
+        for (x, y) in centers.iter() {
+            draw_marker(&mut rgb_data, (x.round() as i32, y.round() as i32));
+        }
+
+        draw_contour(&mut rgb_data, &contours);
+
+        // // Sauvegarder l'image résultante
+        // rgb_data
+        //     .save("output_image_with_mask.png")
+        //     .expect("Erreur lors de la sauvegarde de l'image");
+
+    
+        dbg!(&req);
+        req.reuse(ReuseFlag::REUSE_BUFFERS);
+        reqs.push(req)
     }
-
-    let mut rgb_data: RgbaBufferImage =
-        nv12_to_rgba_buffer(width, height, &nv12_data);
-
-    let mask = create_color_mask(width, height, &rgb_data);
-
-    let mut contours = find_contours::<u32>(&mask);
-
-    contours.retain(|e| e.points.len() > 30); // TODO: paramètre, on filtre pour éviter les zones trop petites
-
-    let centers = compute_centers(&contours);
-
-    for (x, y) in centers.iter() {
-        draw_marker(&mut rgb_data, (x.round() as i32, y.round() as i32));
-    }
-
-    draw_contour(&mut rgb_data, &contours);
-
-    // Sauvegarder l'image résultante
-    rgb_data
-        .save("output_image_with_mask.png")
-        .expect("Erreur lors de la sauvegarde de l'image");
-
-    Ok(())
 }

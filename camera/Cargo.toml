@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+eframe = "0.31.1"
+egui = "0.31.1"
 image = "0.25.6"
 imageproc = "0.25.0"
 libcamera = "0.3.0"
