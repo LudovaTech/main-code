@@ -1,6 +1,7 @@
-use std::{collections::HashMap, error::Error};
 use std::time::Duration;
+use std::{collections::HashMap, error::Error};
 
+use imageproc::contours::Contour;
 use libcamera::{
     camera::CameraConfigurationStatus,
     camera_manager::CameraManager,
@@ -18,6 +19,9 @@ use imageproc::{
     drawing::{draw_filled_circle_mut, draw_hollow_circle_mut},
 };
 use imageproc::{drawing::draw_cross_mut, region_labelling::connected_components};
+
+type RgbaBufferImage = ImageBuffer<Rgba<u8>, Vec<u8>>;
+type LumaBufferImage = ImageBuffer<Luma<u8>, Vec<u8>>;
 
 const PIXEL_FORMAT_NV12: PixelFormat =
     PixelFormat::new(u32::from_le_bytes([b'N', b'V', b'1', b'2']), 0);
@@ -46,7 +50,7 @@ fn nv12_to_rgba_buffer(
     width: u32,
     height: u32,
     nv12_data: &Vec<u8>,
-) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+) -> RgbaBufferImage {
     ImageBuffer::from_fn(width, height, |x, y| {
         // Convertir NV12 en RGBA
         let frame_size = width * height;
@@ -65,12 +69,61 @@ fn nv12_to_rgba_buffer(
 }
 
 #[inline]
-fn draw_marker(rgb_data: &mut ImageBuffer<Rgba<u8>, Vec<u8>>, center: (i32, i32)) {
+fn create_color_mask(width: u32, height: u32, rgb_data: &RgbaBufferImage) -> LumaBufferImage {
+    ImageBuffer::from_fn(width, height, |x, y| {
+        let pixel = rgb_data.get_pixel(x, y);
+
+        if (100..255).contains(&pixel.0[0])
+            && (80..210).contains(&pixel.0[1])
+            && (0..200).contains(&pixel.0[2])
+        {
+            Luma([255u8])
+        } else {
+            Luma([0u8])
+        }
+    })
+}
+
+#[inline]
+fn draw_marker(rgb_data: &mut RgbaBufferImage, center: (i32, i32)) {
     draw_hollow_circle_mut(rgb_data, center, 20, Rgba([100, 100, 100, 255]));
     draw_hollow_circle_mut(rgb_data, center, 19, Rgba([100, 100, 100, 255]));
     draw_hollow_circle_mut(rgb_data, center, 18, Rgba([100, 100, 100, 255]));
     draw_hollow_circle_mut(rgb_data, center, 17, Rgba([100, 100, 100, 255]));
 }
+
+#[inline]
+fn draw_contour(rgb_data: &mut RgbaBufferImage, contours: &Vec<Contour<u32>>) {
+    for contour in contours.iter() {
+        for point in contour.points.iter() {
+            let pixel = rgb_data.get_pixel_mut(point.x, point.y);
+            pixel.0 = [255, 255, 255, 255];
+        }
+    }
+}
+
+#[inline]
+fn compute_centers(contours: &Vec<Contour<u32>>) -> Vec<(f32, f32)>{
+    let mut centers: Vec<(f32, f32)> = Vec::new();
+
+    for contour in contours.iter() {
+
+        let mut sum_x = 0.0;
+        let mut sum_y = 0.0;
+
+        for point in contour.points.iter() {
+            sum_x += point.x as f32;
+            sum_y += point.y as f32;
+        }
+
+        let center_x = sum_x / contour.points.len() as f32;
+        let center_y = sum_y / contour.points.len() as f32;
+
+        centers.push((center_x, center_y));
+    }
+    centers
+}
+
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mgr = CameraManager::new().unwrap();
@@ -157,53 +210,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         nv12_data.extend_from_slice(&plane[..bytes_used]);
     }
 
-    let mut rgb_data: ImageBuffer<Rgba<u8>, Vec<u8>> = nv12_to_rgba_buffer(width, height, &nv12_data);
-    draw_marker(&mut rgb_data, (200, 200));
+    let mut rgb_data: RgbaBufferImage =
+        nv12_to_rgba_buffer(width, height, &nv12_data);
 
-    let mask: ImageBuffer<Luma<u8>, Vec<u8>> = ImageBuffer::from_fn(width, height, |x, y| {
-        let pixel = rgb_data.get_pixel(x, y);
+    let mask = create_color_mask(width, height, &rgb_data);
 
-        if (100..255).contains(&pixel.0[0])
-            && (80..210).contains(&pixel.0[1])
-            && (0..200).contains(&pixel.0[2])
-        {
-            Luma([255u8])
-        } else {
-            Luma([0u8])
-        }
-    });
+    let mut contours = find_contours::<u32>(&mask);
 
-    let contours = find_contours::<u32>(&mask);
+    contours.retain(|e| e.points.len() > 30); // TODO: paramètre, on filtre pour éviter les zones trop petites
 
-    // Store the centers of each shape
-    let mut centers: HashMap<usize, (f32, f32)> = HashMap::new();
+    let centers = compute_centers(&contours);
 
-    for (i, contour) in contours.iter().enumerate() {
-        let mut sum_x = 0.0;
-        let mut sum_y = 0.0;
-
-        for point in contour.points.iter() {
-            sum_x += point.x as f32;
-            sum_y += point.y as f32;
-        }
-
-        // Calculate the centroid
-        let center_x = sum_x / contour.points.len() as f32;
-        let center_y = sum_y / contour.points.len() as f32;
-
-        centers.insert(i, (center_x, center_y));
-    }
-    
-    for (_, (x, y)) in centers.iter() {
+    for (x, y) in centers.iter() {
         draw_marker(&mut rgb_data, (x.round() as i32, y.round() as i32));
     }
 
-    for contour in contours.iter() {
-        for point in contour.points.iter() {
-            let pixel = rgb_data.get_pixel_mut(point.x, point.y);
-            pixel.0 = [255, 255, 255, 255];
-        }
-    }
+    draw_contour(&mut rgb_data, &contours);
 
     // Sauvegarder l'image résultante
     rgb_data
