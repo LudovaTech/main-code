@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 use std::time::Duration;
 
 use libcamera::{
@@ -13,8 +13,11 @@ use libcamera::{
 };
 
 use image::{ImageBuffer, Luma, Rgba, RgbaImage};
-use imageproc::{contours::find_contours, drawing::{draw_filled_circle_mut, draw_hollow_circle_mut}};
-use imageproc::drawing::draw_cross_mut;
+use imageproc::{
+    contours::find_contours,
+    drawing::{draw_filled_circle_mut, draw_hollow_circle_mut},
+};
+use imageproc::{drawing::draw_cross_mut, region_labelling::connected_components};
 
 const PIXEL_FORMAT_NV12: PixelFormat =
     PixelFormat::new(u32::from_le_bytes([b'N', b'V', b'1', b'2']), 0);
@@ -154,85 +157,58 @@ fn main() -> Result<(), Box<dyn Error>> {
         nv12_data.extend_from_slice(&plane[..bytes_used]);
     }
 
-    let mut rgb_data = nv12_to_rgba_buffer(width, height, &nv12_data);
+    let mut rgb_data: ImageBuffer<Rgba<u8>, Vec<u8>> = nv12_to_rgba_buffer(width, height, &nv12_data);
     draw_marker(&mut rgb_data, (200, 200));
-    
 
-    /* let mut mask = ImageBuffer::from_fn(width, height, |x, y| {
-        let y_index = (y * width + x) as usize;
-        let y_value = nv12_data[y_index];
+    let mask: ImageBuffer<Luma<u8>, Vec<u8>> = ImageBuffer::from_fn(width, height, |x, y| {
+        let pixel = rgb_data.get_pixel(x, y);
 
-        let uv_index = (height + (y / 2) * width + (x / 2) * 2) as usize;
-        let u_value = nv12_data[uv_index];
-        let v_value = nv12_data[uv_index + 1];
-
-        // Appliquer un seuil pour détecter les pixels orange
-        if y_value >= 200 && u_value < 150 && v_value < 150 {
-            Luma([255]) // Pixel blanc pour la détection
+        if (100..255).contains(&pixel.0[0])
+            && (80..210).contains(&pixel.0[1])
+            && (0..200).contains(&pixel.0[2])
+        {
+            Luma([255u8])
         } else {
-            Luma([0]) // Pixel noir pour le reste
+            Luma([0u8])
         }
     });
 
-    // Trouver les contours des objets détectés
-    let contours = find_contours(&mask);
+    let contours = find_contours::<u32>(&mask);
 
-    // Dessiner une croix au centre de chaque objet détecté
-    for contour in contours {
-        let (min_x, min_y) = contour
-            .points
-            .iter()
-            .fold((u32::MAX, u32::MAX), |(min_x, min_y), point| {
-                (min_x.min(point.x), min_y.min(point.y))
-            });
-        let (max_x, max_y) = contour.points.iter().fold((0, 0), |(max_x, max_y), point| {
-            (max_x.max(point.x), max_y.max(point.y))
-        });
+    // Store the centers of each shape
+    let mut centers: HashMap<usize, (f32, f32)> = HashMap::new();
 
-        let center_x = (min_x + max_x) / 2;
-        let center_y = (min_y + max_y) / 2;
+    for (i, contour) in contours.iter().enumerate() {
+        let mut sum_x = 0.0;
+        let mut sum_y = 0.0;
 
-        // Tracer une croix au centre
-        draw_cross_mut(
-            &mut rgb_data, // Utiliser un clone de mask pour dessiner sur une image séparée
-            Rgba([0, 0, 0, 255]),
-            center_x as i32,
-            center_y as i32,
-        );
+        for point in contour.points.iter() {
+            sum_x += point.x as f32;
+            sum_y += point.y as f32;
+        }
+
+        // Calculate the centroid
+        let center_x = sum_x / contour.points.len() as f32;
+        let center_y = sum_y / contour.points.len() as f32;
+
+        centers.insert(i, (center_x, center_y));
+    }
+    
+    for (_, (x, y)) in centers.iter() {
+        draw_marker(&mut rgb_data, (x.round() as i32, y.round() as i32));
     }
 
-    // Créer une image RGBA pour le masque
-    let mut mask_rgba: RgbaImage = ImageBuffer::from_fn(width, height, |x, y| {
-        let mask_value = mask.get_pixel(x, y).0[0];
-        if mask_value == 255 {
-            Rgba([255, 255, 255, 128]) // Blanc semi-transparent
-        } else {
-            Rgba([0, 0, 0, 0]) // Transparent
+    for contour in contours.iter() {
+        for point in contour.points.iter() {
+            let pixel = rgb_data.get_pixel_mut(point.x, point.y);
+            pixel.0 = [255, 255, 255, 255];
         }
-    });
-
-    // Superposer le masque sur l'image originale
-    for (x, y, pixel) in rgb_data.enumerate_pixels_mut() {
-        let mask_pixel = mask_rgba.get_pixel(x, y);
-        if mask_pixel[3] > 0 {
-            // Si le pixel du masque est non transparent
-            *pixel = Rgba([
-                (pixel[0] as u32 * (255 - mask_pixel[3] as u32) / 255) as u8
-                    + (mask_pixel[0] as u32 * mask_pixel[3] as u32 / 255) as u8,
-                (pixel[1] as u32 * (255 - mask_pixel[3] as u32) / 255) as u8
-                    + (mask_pixel[1] as u32 * mask_pixel[3] as u32 / 255) as u8,
-                (pixel[2] as u32 * (255 - mask_pixel[3] as u32) / 255) as u8
-                    + (mask_pixel[2] as u32 * mask_pixel[3] as u32 / 255) as u8,
-                255,
-            ]);
-        }
-    } */
+    }
 
     // Sauvegarder l'image résultante
     rgb_data
         .save("output_image_with_mask.png")
         .expect("Erreur lors de la sauvegarde de l'image");
 
-    // Les ressources (caméra, buffers, etc.) sont libérées automatiquement.
     Ok(())
 }
