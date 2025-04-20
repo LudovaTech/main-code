@@ -1,6 +1,8 @@
+use eframe::egui::Pos2;
 use eframe::{egui, EventLoopBuilderHook};
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 
+use crate::analyze::HoughLine;
 use crate::parse::LidarPoint;
 use crate::units::*;
 
@@ -8,9 +10,10 @@ const DEFAULT_ZOOM: f32 = 180.0;
 
 struct PolarPointsApp {
     zoom: f32,
-    points: Vec<LidarPoint>, // (angle, distance)
-    offset: egui::Vec2, // Décalage
-    dragging: bool, // Indique si la souris est en train d'être maintenue
+    points: Vec<LidarPoint>,
+    lines: Vec<HoughLine>,
+    offset: egui::Vec2,                 // Décalage
+    dragging: bool,                     // Indique si la souris est en train d'être maintenue
     last_mouse_pos: Option<egui::Pos2>, // Dernière position de la souris
 }
 
@@ -30,6 +33,7 @@ impl Default for PolarPointsApp {
         Self {
             zoom: DEFAULT_ZOOM,
             points,
+            lines: Vec::new(),
             offset: egui::vec2(0.0, 0.0),
             dragging: false,
             last_mouse_pos: None,
@@ -38,10 +42,11 @@ impl Default for PolarPointsApp {
 }
 
 impl PolarPointsApp {
-    pub fn new(points: Vec<LidarPoint>) -> Self {
+    pub fn new(points: Vec<LidarPoint>, lines: Vec<HoughLine>) -> Self {
         Self {
             zoom: DEFAULT_ZOOM,
             points,
+            lines,
             offset: egui::vec2(0.0, 0.0),
             dragging: false,
             last_mouse_pos: None,
@@ -102,11 +107,26 @@ impl eframe::App for PolarPointsApp {
                     egui::Stroke::NONE,
                 );
             }
+
+            for line in &self.lines {
+                painter.line(
+                    line.get_two_points_on_the_line()
+                        .into_iter()
+                        .map(|e| {
+                            Pos2::new(
+                                center.x + (e.0 as f32) * self.zoom,
+                                center.y + (e.1 as f32) * self.zoom,
+                            )
+                        })
+                        .collect(),
+                    egui::Stroke::new(2.0, egui::Color32::DARK_RED),
+                );
+            }
         });
     }
 }
 
-pub fn show_viewport(points: Vec<LidarPoint>) -> Result<(), eframe::Error> {
+pub fn show_viewport(points: Vec<LidarPoint>, lines: Vec<HoughLine>) -> Result<(), eframe::Error> {
     let event_loop_builder: Option<EventLoopBuilderHook> = Some(Box::new(|event_loop_builder| {
         event_loop_builder.with_any_thread(true);
     }));
@@ -118,6 +138,6 @@ pub fn show_viewport(points: Vec<LidarPoint>) -> Result<(), eframe::Error> {
     eframe::run_native(
         "Points en coordonnées polaires",
         options,
-        Box::new(|_cc| Ok(Box::new(PolarPointsApp::new(points)))),
+        Box::new(|_cc| Ok(Box::new(PolarPointsApp::new(points, lines)))),
     )
 }

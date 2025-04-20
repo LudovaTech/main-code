@@ -35,7 +35,7 @@ pub const DISTANCE_DISTRIBUTION: usize =
     LIDAR_DISTANCE_MAX.const_div(DISTANCE_RESOLUTION).0 as usize + 1;
 
 pub fn build_hough_accumulator(
-    points: Box<Vec<LidarPoint>>,
+    points: &Vec<LidarPoint>,
 ) -> Box<[[u16; ANGLE_DISTRIBUTION]; DISTANCE_DISTRIBUTION]> {
     let angle_resolution = Deg::new(f64::from(ANGLE_RESOLUTION_OLD_TYPE / 100)).rad();
     let mut accumulator = [[0u16; ANGLE_DISTRIBUTION]; DISTANCE_DISTRIBUTION];
@@ -43,19 +43,38 @@ pub fn build_hough_accumulator(
         if point.distance > LIDAR_DISTANCE_MAX {
             continue;
         }
-        let mut distance_rounded = point.distance / DISTANCE_RESOLUTION;
-        let mut angle_rounded = point.angle / angle_resolution;
-        // if (point.distance % DISTANCE_RESOLUTION) >= (DISTANCE_RESOLUTION / 2.0) {
-        //     // Si la distance est plus proche de la valeur arrondie supérieure que inférieure
-        //     distance_rounded += 1;
-        // };
-        // if ((point.angle % ANGLE_RESOLUTION_OLD_TYPE) as f32) >= (ANGLE_RESOLUTION_OLD_TYPE as f32 / 2.0) {
-        //     angle_rounded += 1;
-        // };
+        let distance_case = (point.distance / DISTANCE_RESOLUTION).0.round() as usize;
+        let angle_case = (point.angle / angle_resolution).round() as usize;
 
-        // accumulator[distance_rounded][angle_rounded] += 1;
+        accumulator[distance_case][angle_case] += 1;
     }
     Box::new(accumulator)
+}
+
+#[derive(Debug)]
+pub struct HoughLine {
+    pub distance: Meters,
+    pub angle: Rad,
+}
+
+impl HoughLine {
+    fn to_carthesian(polar: (f64, Rad)) -> (f64, f64) {
+        (polar.0 * polar.1.cos(), polar.0 * polar.1.sin())
+    }
+
+    pub fn get_two_points_on_the_line(&self) -> [(f64, f64); 2] {
+        let modif = Deg::new(89.0).rad();
+        // On choisit un nouvel angle
+        let angle1 = self.angle - modif;
+        let angle2 = self.angle + modif;
+        // On peut maintenant calculer la distance de ce point avec la formule
+        let distance1 = self.distance.0 / angle1.cos();
+        let distance2 = self.distance.0 / angle2.cos();
+        // TODO on pourrait simplifier cette expression mais est ce que cela vaut le coup de la lisibilité ?
+        let point1 = Self::to_carthesian((distance1, angle1));
+        let point2 = Self::to_carthesian((distance2, angle2));
+        [point1, point2]
+    }
 }
 
 #[cfg(test)]
@@ -85,6 +104,22 @@ mod tests {
     fn test1() {
         let data = load_log(TEST1);
         println!("{:#?}", data);
-        show_viewport(*data).unwrap();
+        let ha = build_hough_accumulator(&data);
+        let angle_resolution = Deg::new(f64::from(ANGLE_RESOLUTION_OLD_TYPE / 100)).rad();
+        let mut maximum: (usize, usize, u16) = (0, 0, 0);
+        for (distance_case, angles) in ha.iter().enumerate() {
+            for (angles_case, nb) in angles.iter().enumerate() {
+                if *nb > maximum.2 {
+                    maximum = (distance_case, angles_case, *nb);
+                }
+            }
+        }
+        let max_line = HoughLine {
+            distance: Meters(maximum.0 as f64 * DISTANCE_RESOLUTION.0),
+            angle: Rad::new(maximum.1 as f64 * angle_resolution.val())
+        };
+        println!("{:?}", max_line);
+        
+        show_viewport(*data, vec![max_line]).unwrap();
     }
 }
