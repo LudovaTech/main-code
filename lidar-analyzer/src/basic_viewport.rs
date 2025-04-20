@@ -109,17 +109,21 @@ impl eframe::App for PolarPointsApp {
             }
 
             for line in &self.lines {
-                painter.line(
-                    line.get_two_points_on_the_line()
-                        .into_iter()
-                        .map(|e| {
-                            Pos2::new(
-                                center.x + (e.0 as f32) * self.zoom,
-                                center.y + (e.1 as f32) * self.zoom,
-                            )
-                        })
-                        .collect(),
-                    egui::Stroke::new(2.0, egui::Color32::DARK_RED),
+                let perpendicular_angle = line.angle + Rad::QUARTER_TURN;
+                let (width, height) = ctx.screen_rect().size().into();
+                let length: f32 = (width.powi(2) + height.powi(2)).sqrt(); // Assez bonne approximation
+                let x_end: f32 = center.x + ((line.distance.0 * line.angle.cos()) as f32) * self.zoom;
+                let y_end: f32 = center.y + ((line.distance.0 * line.angle.sin()) as f32) * self.zoom;
+                let x1: f32 = x_end + length * perpendicular_angle.cos() as f32;
+                let y1: f32 = y_end + length * perpendicular_angle.sin() as f32;
+                let x2: f32 = x_end - length * perpendicular_angle.cos() as f32;
+                let y2: f32 = y_end - length * perpendicular_angle.sin() as f32;
+                ui.painter().line_segment(
+                    [
+                        egui::pos2(x1, y1),
+                        egui::pos2(x2, y2),
+                    ],
+                    egui::Stroke::new(5.0, egui::Color32::DARK_RED),
                 );
             }
         });
