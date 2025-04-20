@@ -6,7 +6,7 @@ use crate::units::*;
 // Constantes
 
 /// on exclut les lignes qui contiennent moins de x points
-const HOUGH_TRANSFORM_MIN_POINT_PER_LINE: u16 = 1500;
+const HOUGH_TRANSFORM_MIN_POINT_PER_LINE: u16 = 10;
 /// taille de la matrice de Hough
 const HOUGH_TRANSFORM_MEMORY_SIZE: u32 = 24000;
 /// si une ligne est proche d'une autre de moins de 50cm, on l'exclut
@@ -30,9 +30,9 @@ pub const ANGLE_RESOLUTION_OLD_TYPE: u16 = 3 * 100;
 
 /// nombre d'angle différents possibles avec la résolution donnée
 pub const ANGLE_DISTRIBUTION: usize = (360_00 / ANGLE_RESOLUTION_OLD_TYPE) as usize + 1;
-/// nombre de distances différentes possibles avec la résolution donnée
+/// nombre de distances différentes possibles avec la résolution donnée, attention à bien compter les distances négatives (d'où le *2)
 pub const DISTANCE_DISTRIBUTION: usize =
-    LIDAR_DISTANCE_MAX.const_div(DISTANCE_RESOLUTION).0 as usize + 1;
+    (LIDAR_DISTANCE_MAX.const_div(DISTANCE_RESOLUTION).0 * 2.0) as usize + 1;
 
 #[derive(Debug, Clone)]
 pub struct PolarLine {
@@ -44,6 +44,14 @@ pub struct PolarLine {
 pub struct HoughLine {
     pub line: PolarLine,
     pub weight: u16,
+}
+
+/// ax + by + c = 0
+#[derive(Debug, Clone)]
+pub struct CarthesianLine {
+    pub a: f64,
+    pub b: f64,
+    pub c: f64,
 }
 
 #[inline]
@@ -89,6 +97,7 @@ fn check_around(
     }
 }
 
+/// guide : https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html
 fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
     // Création de la matrice de la transformation de Hough
     let angle_resolution = Deg::new(f64::from(ANGLE_RESOLUTION_OLD_TYPE / 100)).rad();
@@ -97,15 +106,29 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
         if point.distance > LIDAR_DISTANCE_MAX {
             continue;
         }
-        let distance_case = (point.distance / DISTANCE_RESOLUTION).0.round() as usize;
-        let angle_case = (point.angle / angle_resolution).round() as usize;
 
-        accumulator[distance_case][angle_case] += 100;
-        check_around(&mut accumulator, distance_case, angle_case, 1, 80);
-        check_around(&mut accumulator, distance_case, angle_case, 2, 65);
-        check_around(&mut accumulator, distance_case, angle_case, 3, 40);
-        check_around(&mut accumulator, distance_case, angle_case, 4, 25);
-        check_around(&mut accumulator, distance_case, angle_case, 5, 10);
+        // Formule magique. `lpd * cos(lpa - a)`
+        // Se prouve avec : lpd = lidarPoint.distance, lpa = lidarPoint.angle
+        // `x = lpd * cos(lpa)`, `y = lpd * sin(lpa)`, `r_a = x * cos(a) + y * sin(a)`, et les formules d'addition du cosinus
+        let mut calculated_angle = Rad::ZERO;
+        while calculated_angle <= Rad::HALF_TURN {
+            println!("{}", calculated_angle);
+            calculated_angle += angle_resolution;
+            let calculated_distance = Meters(point.distance.0 * (point.angle - calculated_angle).cos());
+            let distance_case = (calculated_distance / DISTANCE_RESOLUTION).0.round();
+            let angle_case = (calculated_angle / angle_resolution).round();
+            println!("{} {}", distance_case, ((DISTANCE_DISTRIBUTION / 2) as f64 + distance_case) as usize);
+            let distance_case = (calculated_distance / DISTANCE_RESOLUTION).0.round() as usize;
+            let angle_case = (calculated_angle / angle_resolution).round() as usize;
+            accumulator[distance_case][angle_case] = accumulator[distance_case][angle_case].saturating_add(1);
+        }
+        panic!()
+
+        // check_around(&mut accumulator, distance_case, angle_case, 1, 80);
+        // check_around(&mut accumulator, distance_case, angle_case, 2, 65);
+        // check_around(&mut accumulator, distance_case, angle_case, 3, 40);
+        // check_around(&mut accumulator, distance_case, angle_case, 4, 25);
+        // check_around(&mut accumulator, distance_case, angle_case, 5, 10);
     }
 
     // Tri des lignes selon le nombre de points
@@ -154,7 +177,7 @@ mod tests {
 
     #[test]
     fn test1() {
-        let data = load_log(TEST1);
+        let data = load_log(TEST2);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
         println!("{:?}", ha.len());
