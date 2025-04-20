@@ -144,7 +144,7 @@ impl LidarPoint {
             // distance mm -> meters
             // intensité 0-255 -> 0-1
             points.push(LidarPoint {
-                distance: Meters(f64::from(Self::get_2_bytes_lsb_msb(&data, i)) / 1000.0),
+                distance: Meters::mm(f64::from(Self::get_2_bytes_lsb_msb(&data, i))),
                 intensity: Intensity::from_u8(data[i + 2]),
                 angle: Rad::ZERO,
             });

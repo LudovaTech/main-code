@@ -6,9 +6,12 @@ use tracing_panic::panic_hook;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{self, fmt, Registry};
 
-mod parse;
 mod units;
-//mod analyze;
+mod parse;
+mod analyze;
+
+#[cfg(test)]
+mod basic_viewport;
 
 #[inline]
 fn set_up_logging() -> Result<(), Box<dyn Error>> {
