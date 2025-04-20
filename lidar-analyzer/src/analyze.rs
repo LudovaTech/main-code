@@ -57,25 +57,11 @@ pub struct HoughLine {
     pub angle: Rad,
 }
 
-impl HoughLine {
-    fn to_carthesian(polar: (f64, Rad)) -> (f64, f64) {
-        (polar.0 * polar.1.cos(), polar.0 * polar.1.sin())
-    }
-
-    pub fn get_two_points_on_the_line(&self) -> [(f64, f64); 2] {
-        let modif = Deg::new(89.0).rad();
-        // On choisit un nouvel angle
-        let angle1 = self.angle - modif;
-        let angle2 = self.angle + modif;
-        // On peut maintenant calculer la distance de ce point avec la formule
-        let distance1 = self.distance.0 / angle1.cos();
-        let distance2 = self.distance.0 / angle2.cos();
-        // TODO on pourrait simplifier cette expression mais est ce que cela vaut le coup de la lisibilité ?
-        let point1 = Self::to_carthesian((distance1, angle1));
-        let point2 = Self::to_carthesian((distance2, angle2));
-        [point1, point2]
-    }
-}
+// impl HoughLine {
+//     fn to_carthesian(polar: (f64, Rad)) -> (f64, f64) {
+//         (polar.0 * polar.1.cos(), polar.0 * polar.1.sin())
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
