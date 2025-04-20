@@ -2,7 +2,7 @@ use eframe::egui::Pos2;
 use eframe::{egui, EventLoopBuilderHook};
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 
-use crate::analyze::HoughLine;
+use crate::analyze::PolarLine;
 use crate::parse::LidarPoint;
 use crate::units::*;
 
@@ -11,7 +11,7 @@ const DEFAULT_ZOOM: f32 = 180.0;
 struct PolarPointsApp {
     zoom: f32,
     points: Vec<LidarPoint>,
-    lines: Vec<HoughLine>,
+    lines: Vec<PolarLine>,
     offset: egui::Vec2,                 // Décalage
     dragging: bool,                     // Indique si la souris est en train d'être maintenue
     last_mouse_pos: Option<egui::Pos2>, // Dernière position de la souris
@@ -42,7 +42,7 @@ impl Default for PolarPointsApp {
 }
 
 impl PolarPointsApp {
-    pub fn new(points: Vec<LidarPoint>, lines: Vec<HoughLine>) -> Self {
+    pub fn new(points: Vec<LidarPoint>, lines: Vec<PolarLine>) -> Self {
         Self {
             zoom: DEFAULT_ZOOM,
             points,
@@ -130,7 +130,7 @@ impl eframe::App for PolarPointsApp {
     }
 }
 
-pub fn show_viewport(points: Vec<LidarPoint>, lines: Vec<HoughLine>) -> Result<(), eframe::Error> {
+pub fn show_viewport(points: Vec<LidarPoint>, lines: Vec<PolarLine>) -> Result<(), eframe::Error> {
     let event_loop_builder: Option<EventLoopBuilderHook> = Some(Box::new(|event_loop_builder| {
         event_loop_builder.with_any_thread(true);
     }));
