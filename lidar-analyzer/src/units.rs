@@ -24,6 +24,12 @@ impl Meters {
     pub const fn const_div(self, rhs: Self) -> Self {
         Self(self.0 / rhs.0)
     }
+
+    /// Teste si cette distance est dans les environs de celle passée en paramètres
+    /// entre 0.9 et 1.1 fois
+    pub fn in_the_aera_of(&self, other: Meters) -> bool {
+        ((other.0 * 0.9)..=(other.0 * 1.1)).contains(&self.0)
+    }
 }
 
 impl Div for Meters {
