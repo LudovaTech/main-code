@@ -9,6 +9,7 @@ use tracing_subscriber::{self, fmt, Registry};
 mod units;
 mod parse;
 mod analyze;
+mod analyze_tests_data;
 
 #[cfg(test)]
 mod basic_viewport;
