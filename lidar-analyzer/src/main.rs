@@ -33,13 +33,14 @@ fn set_up_logging() -> Result<(), Box<dyn Error>> {
 fn main() -> Result<(), Box<dyn Error>> {
     set_up_logging()?;
     let mut lidar = parse::Lidar::new()?;
-    loop {
-        let data = lidar.read()?;
-        let points = parse::LidarPoint::from_data(data)?;
-        let mut points_pos = Vec::with_capacity(points.len());
-        for point in points.iter() {
-            points_pos.push((point.distance, point.angle));
-        }
-        info!("got {:?}", points_pos);
-    }
+    // loop {
+    //     let data = lidar.read()?;
+    //     let points = parse::LidarPoint::from_data(data)?;
+    //     let mut points_pos = Vec::with_capacity(points.len());
+    //     for point in points.iter() {
+    //         points_pos.push((point.distance, point.angle));
+    //     }
+    //     info!("got {:?}", points_pos);
+    // }
+    Ok(())
 }
