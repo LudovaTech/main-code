@@ -1,4 +1,7 @@
+use std::cmp::Reverse;
+use std::error::Error;
 use std::f64::consts::PI;
+use std::fmt::Display;
 
 use crate::parse::{LidarAngle, LidarDistance, LidarPoint};
 use crate::units::*;
@@ -34,13 +37,55 @@ use crate::units::*;
 // pub const DISTANCE_DISTRIBUTION: usize =
 //     (LIDAR_DISTANCE_MAX.const_div(DISTANCE_RESOLUTION).0 * 2.0) as usize + 1;
 
-#[derive(Debug, Clone)]
+/// en radians
+const IS_PERPENDICULAR_TOLERANCE: f64 = 0.2;
+/// en radians
+const IS_PARALLEL_TOLERANCE: f64 = 0.2;
+
+#[derive(Debug, Clone, Copy)]
 pub struct PolarLine {
     pub distance: Meters,
     pub angle: Rad,
 }
 
-#[derive(Debug, Clone)]
+impl PolarLine {
+    /// Renvoit l'angle aigu entre deux lignes polaires
+    /// (faire un schéma pour se convaincre rapidement de la formule)
+    fn smallest_angle_between(&self, other: &Self) -> Rad {
+        let alpha = (self.angle - other.angle).mag();
+        alpha.min(Rad::HALF_TURN - alpha)
+    }
+
+    /// Avec une tolérance
+    fn is_parallel_with(&self, other: &Self) -> bool {
+        self.smallest_angle_between(other) <= Rad::new(IS_PARALLEL_TOLERANCE)
+    }
+
+    /// Avec une tolérance
+    fn is_perpendicular_with(&self, other: &Self) -> bool {
+        (self.smallest_angle_between(other) - Rad::QUARTER_TURN).mag()
+            <= Rad::new(IS_PERPENDICULAR_TOLERANCE)
+    }
+
+    /// N'a du sens que si les lignes sont à peu près parallèles
+    fn distance_center_with(&self, other: &Self) -> Meters {
+        // Impossible de faire self.distance.abs() + other.distance.abs() car cela donnerait des résultats éloignés si la tolérance est trop élevée
+        let (x1, y1) = self._to_carthesian_point();
+        let (x2, y2) = other._to_carthesian_point();
+        Meters(((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt())
+    }
+
+    /// A n'utiliser que si vous êtes sûr de ce que vous faites,
+    /// *Vous transformez une droite en point !*
+    fn _to_carthesian_point(&self) -> (f64, f64) {
+        (
+            self.distance.0 * self.angle.cos(),
+            self.distance.0 * self.angle.sin(),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct HoughLine {
     pub line: PolarLine,
     pub weight: u16,
@@ -103,13 +148,17 @@ const HOUGH_TRANSFORM_MIN_POINT_PER_LINE: u16 = 50;
 /// distance maximale en dessous de laquelle les points détectés du lidar sont conservés
 const LIDAR_DISTANCE_MAX: LidarDistance = LidarDistance::meters(3);
 
-const ANGLE_RESOLUTION: LidarAngle = LidarAngle::deg(3);
+/// angle auquel on crée une nouvelle ligne dans la transformation de Hough
+const ANGLE_RESOLUTION: LidarAngle = LidarAngle::deg(1);
 
-/// On ne va que de 0 à 180°
+/// nombre d'angles différents dans la matrice de la transformation de Hough
+/// On ne va que de 0 à 180° car les distances peuvent être négatives
 const ANGLE_TAILLE: usize = (LidarAngle::deg(180).0 / ANGLE_RESOLUTION.0) as usize + 1;
 
+/// distance à laquelle on crée une nouvelle ligne dans la transformation de Hough
 const DISTANCE_RESOLUTION: LidarDistance = LidarDistance::cm(1);
 
+/// nombre de distances différentes dans la matrice de la transformation de Hough
 /// On compte 2x car il y a les distances positives et négatives
 const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2 / DISTANCE_RESOLUTION.0) as usize + 1;
 
@@ -147,14 +196,13 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
             // println!("{} {} {}", distance_case, offset, distance_factor);
             accumulator[distance_case][angle_case] =
                 accumulator[distance_case][angle_case].saturating_add(1);
+            // TODO est-ce que check around améliore les résultats ?
+            // check_around(&mut accumulator, distance_case, angle_case, 1, 80);
+            // check_around(&mut accumulator, distance_case, angle_case, 2, 65);
+            // check_around(&mut accumulator, distance_case, angle_case, 3, 40);
+            // check_around(&mut accumulator, distance_case, angle_case, 4, 25);
+            // check_around(&mut accumulator, distance_case, angle_case, 5, 10);
         }
-        // panic!()
-
-        // check_around(&mut accumulator, distance_case, angle_case, 1, 80);
-        // check_around(&mut accumulator, distance_case, angle_case, 2, 65);
-        // check_around(&mut accumulator, distance_case, angle_case, 3, 40);
-        // check_around(&mut accumulator, distance_case, angle_case, 4, 25);
-        // check_around(&mut accumulator, distance_case, angle_case, 5, 10);
     }
 
     // Tri des lignes selon le nombre de points
@@ -180,8 +228,194 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
             })
         }
     }
-    trie.sort_by_key(|e| e.weight);
+    trie.sort_by_key(|e| Reverse(e.weight));
     trie
+}
+
+// TODO should not be here
+const FIELD_LENGTH: Meters = Meters::cm(243.0);
+// TODO should not be here
+const FIELD_WIDTH: Meters = Meters::cm(182.0);
+
+#[derive(Debug, Clone, Copy)]
+struct WallsConstruction {
+    first_wall: HoughLine,
+    parallele_wall: Option<HoughLine>,
+    perpendicular_wall_1: Option<HoughLine>,
+    perpendicular_wall_2: Option<HoughLine>,
+}
+
+impl WallsConstruction {
+    fn new(first_wall: HoughLine) -> WallsConstruction {
+        WallsConstruction {
+            first_wall: first_wall,
+            parallele_wall: None,
+            perpendicular_wall_1: None,
+            perpendicular_wall_2: None,
+        }
+    }
+
+    fn is_complete(&self) -> bool {
+        self.parallele_wall.is_some()
+            && self.perpendicular_wall_1.is_some()
+            && self.perpendicular_wall_2.is_some()
+    }
+
+    fn build_walls(&self) -> Option<Walls> {
+        if !self.is_complete() {
+            return None;
+        }
+        Some(Walls {
+            first_wall: self.first_wall,
+            parallele_wall: self.parallele_wall.unwrap(),
+            perpendicular_wall_1: self.perpendicular_wall_1.unwrap(),
+            perpendicular_wall_2: self.perpendicular_wall_2.unwrap(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Walls {
+    first_wall: HoughLine,
+    parallele_wall: HoughLine,
+    perpendicular_wall_1: HoughLine,
+    perpendicular_wall_2: HoughLine,
+}
+
+struct WallsIntoIterator {
+    walls: Walls,
+    step: u8,
+}
+
+impl IntoIterator for Walls {
+    type IntoIter = WallsIntoIterator;
+    type Item = HoughLine;
+
+    fn into_iter(self) -> Self::IntoIter {
+        WallsIntoIterator {
+            walls: self,
+            step: 0,
+        }
+    }
+}
+
+impl Iterator for WallsIntoIterator {
+    type Item = HoughLine;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = match self.step {
+            0 => self.walls.first_wall,
+            1 => self.walls.perpendicular_wall_1,
+            2 => self.walls.parallele_wall,
+            3 => self.walls.perpendicular_wall_2,
+            _ => return None,
+        };
+        self.step += 1;
+        Some(result)
+    }
+}
+
+#[derive(Debug)]
+enum WallFinderError {
+    DetectedLineEmpty,
+    UnableToFindAllWalls,
+}
+
+impl Display for WallFinderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for WallFinderError {}
+
+/// detected_lines doit déjà être trié
+fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallFinderError> {
+    if detected_lines.len() == 0 {
+        return Err(WallFinderError::DetectedLineEmpty);
+    }
+    let mut walls = WallsConstruction::new(detected_lines[0]);
+    let mut detected_line_iter = detected_lines.iter();
+    detected_line_iter.next(); // skip first
+    for hough_line in detected_line_iter {
+        let line = hough_line.line;
+        if walls.perpendicular_wall_1.is_none() {
+            // On essaie de déterminer si cette ligne peut-être la perpendiculaire 1
+            if line.is_perpendicular_with(&walls.first_wall.line) {
+                walls.perpendicular_wall_1 = Some(*hough_line);
+                continue;
+            }
+            // On essaie de déterminer si cette ligne peut-être la parallèle
+            // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
+            if line.is_parallel_with(&walls.first_wall.line)
+                && (line
+                    .distance_center_with(&walls.first_wall.line)
+                    .in_the_aera_of(FIELD_LENGTH)
+                    || line
+                        .distance_center_with(&walls.first_wall.line)
+                        .in_the_aera_of(FIELD_WIDTH))
+            {
+                let mut ok = true;
+                if let Some(HoughLine {
+                    line: perpendicular1,
+                    weight: _,
+                }) = walls.perpendicular_wall_1
+                {
+                    ok = ok && line.is_perpendicular_with(&perpendicular1)
+                }
+                if let Some(HoughLine {
+                    line: perpendicular2,
+                    weight: _,
+                }) = walls.perpendicular_wall_2
+                {
+                    ok = ok && line.is_perpendicular_with(&perpendicular2)
+                }
+                ok = true;
+                if ok {
+                    walls.perpendicular_wall_1 = Some(*hough_line)
+                }
+            }
+            // On essaie de déterminer si cette ligne peut-être la perpendiculaire 2
+            // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
+            if line.is_perpendicular_with(&walls.first_wall.line) {
+                let mut ok = true;
+                if let Some(HoughLine {
+                    line: perpendicular1,
+                    weight: _,
+                }) = walls.perpendicular_wall_1
+                {
+                    ok = ok
+                        && line.is_parallel_with(&perpendicular1)
+                        && (line
+                            .distance_center_with(&perpendicular1)
+                            .in_the_aera_of(FIELD_LENGTH)
+                            || line
+                                .distance_center_with(&perpendicular1)
+                                .in_the_aera_of(FIELD_WIDTH))
+                }
+                if let Some(HoughLine {
+                    line: parallel,
+                    weight: _,
+                }) = walls.parallele_wall
+                {
+                    ok = ok && line.is_perpendicular_with(&parallel)
+                }
+                ok = true;
+                if ok {
+                    walls.perpendicular_wall_2 = Some(*hough_line)
+                }
+            }
+        }
+        if walls.is_complete() {
+            break;
+        }
+    }
+
+    println!("{:#?}", walls);
+    return Ok(walls);
+    // walls
+    //     .build_walls()
+    //     .ok_or(WallFinderError::UnableToFindAllWalls)
 }
 
 #[cfg(test)]
@@ -213,11 +447,36 @@ mod tests {
 
     #[test]
     fn test1() {
-        let data = load_log(TEST2);
+        let data = load_log(TEST1);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
         println!("{:?}", ha.len());
+        let walls = find_walls(ha.iter().copied().collect()).unwrap();
 
-        show_viewport(*data, ha.into_iter().map(|e| e.line).collect()).unwrap();
+        let mut walls_vec = vec![walls.first_wall];
+
+        if let Some(parallel_wall) = walls.parallele_wall {
+            walls_vec.push(parallel_wall);
+        }
+        if let Some(perpendicular_wall_1) = walls.perpendicular_wall_1 {
+            walls_vec.push(perpendicular_wall_1);
+        }
+        if let Some(perpendicular_wall_2) = walls.perpendicular_wall_2 {
+            walls_vec.push(perpendicular_wall_2);
+        }
+
+        show_viewport(
+            *data,
+            ha.iter().map(|e| e.line).collect(),
+            walls_vec.into_iter().map(|e| e.line).collect(),
+        );
+
+        println!("{:?}", walls);
+        // show_viewport(
+        //     *data,
+        //     ha.into_iter().map(|e| e.line).collect(),
+        //     walls.into_iter().map(|e| e.line).collect(),
+        // )
+        // .unwrap();
     }
 }

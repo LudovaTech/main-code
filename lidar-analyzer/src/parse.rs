@@ -230,7 +230,7 @@ impl Mul<usize> for LidarAngle {
 ///  - distance en mètres 
 ///  - intensité entre 0 et 1
 ///  - angle en radians
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LidarPoint {
     pub distance: LidarDistance,
     pub intensity: Intensity,

@@ -12,6 +12,7 @@ struct PolarPointsApp {
     zoom: f32,
     points: Vec<LidarPoint>,
     lines: Vec<PolarLine>,
+    walls: Vec<PolarLine>,
     offset: egui::Vec2,                 // Décalage
     dragging: bool,                     // Indique si la souris est en train d'être maintenue
     last_mouse_pos: Option<egui::Pos2>, // Dernière position de la souris
@@ -34,6 +35,7 @@ impl Default for PolarPointsApp {
             zoom: DEFAULT_ZOOM,
             points,
             lines: Vec::new(),
+            walls: Vec::new(),
             offset: egui::vec2(0.0, 0.0),
             dragging: false,
             last_mouse_pos: None,
@@ -42,11 +44,12 @@ impl Default for PolarPointsApp {
 }
 
 impl PolarPointsApp {
-    pub fn new(points: Vec<LidarPoint>, lines: Vec<PolarLine>) -> Self {
+    pub fn new(points: Vec<LidarPoint>, lines: Vec<PolarLine>, walls: Vec<PolarLine>) -> Self {
         Self {
             zoom: DEFAULT_ZOOM,
             points,
             lines,
+            walls,
             offset: egui::vec2(0.0, 0.0),
             dragging: false,
             last_mouse_pos: None,
@@ -108,29 +111,38 @@ impl eframe::App for PolarPointsApp {
                 );
             }
 
-            for line in &self.lines {
-                let perpendicular_angle = line.angle + Rad::QUARTER_TURN;
-                let (width, height) = ctx.screen_rect().size().into();
-                let length: f32 = (width.powi(2) + height.powi(2)).sqrt(); // Assez bonne approximation
-                let x_end: f32 = center.x + ((line.distance.0 * line.angle.cos()) as f32) * self.zoom;
-                let y_end: f32 = center.y + ((line.distance.0 * line.angle.sin()) as f32) * self.zoom;
-                let x1: f32 = x_end + length * perpendicular_angle.cos() as f32;
-                let y1: f32 = y_end + length * perpendicular_angle.sin() as f32;
-                let x2: f32 = x_end - length * perpendicular_angle.cos() as f32;
-                let y2: f32 = y_end - length * perpendicular_angle.sin() as f32;
-                ui.painter().line_segment(
-                    [
-                        egui::pos2(x1, y1),
-                        egui::pos2(x2, y2),
-                    ],
-                    egui::Stroke::new(5.0, egui::Color32::DARK_RED),
-                );
-            }
+            self.draw_lines(ui, ctx, center, &self.lines, egui::Stroke::new(5.0, egui::Color32::DARK_RED));
+            self.draw_lines(ui, ctx, center, &self.walls, egui::Stroke::new(5.0, egui::Color32::BLUE));
+            
         });
+    }
+
+}
+
+impl PolarPointsApp {
+    fn draw_lines(&self, ui:&mut egui::Ui, ctx: &egui::Context, center: Pos2, lines: &Vec<PolarLine>, stroke: egui::Stroke) {
+        for line in lines {
+            let perpendicular_angle = line.angle + Rad::QUARTER_TURN;
+            let (width, height) = ctx.screen_rect().size().into();
+            let length: f32 = 2.0 * (width.powi(2) + height.powi(2)).sqrt(); // Assez bonne approximation
+            let x_end: f32 = center.x + ((line.distance.0 * line.angle.cos()) as f32) * self.zoom;
+            let y_end: f32 = center.y + ((line.distance.0 * line.angle.sin()) as f32) * self.zoom;
+            let x1: f32 = x_end + length * perpendicular_angle.cos() as f32;
+            let y1: f32 = y_end + length * perpendicular_angle.sin() as f32;
+            let x2: f32 = x_end - length * perpendicular_angle.cos() as f32;
+            let y2: f32 = y_end - length * perpendicular_angle.sin() as f32;
+            ui.painter().line_segment(
+                [
+                    egui::pos2(x1, y1),
+                    egui::pos2(x2, y2),
+                ],
+                stroke,
+            );
+        }
     }
 }
 
-pub fn show_viewport(points: Vec<LidarPoint>, lines: Vec<PolarLine>) -> Result<(), eframe::Error> {
+pub fn show_viewport(points: Vec<LidarPoint>, lines: Vec<PolarLine>, walls: Vec<PolarLine>) -> Result<(), eframe::Error> {
     let event_loop_builder: Option<EventLoopBuilderHook> = Some(Box::new(|event_loop_builder| {
         event_loop_builder.with_any_thread(true);
     }));
@@ -142,6 +154,6 @@ pub fn show_viewport(points: Vec<LidarPoint>, lines: Vec<PolarLine>) -> Result<(
     eframe::run_native(
         "Points en coordonnées polaires",
         options,
-        Box::new(|_cc| Ok(Box::new(PolarPointsApp::new(points, lines)))),
+        Box::new(|_cc| Ok(Box::new(PolarPointsApp::new(points, lines, walls)))),
     )
 }
