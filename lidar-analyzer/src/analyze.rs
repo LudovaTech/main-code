@@ -2,6 +2,8 @@ use std::cmp::Reverse;
 use std::error::Error;
 use std::fmt::Display;
 
+use radians::Angle;
+
 use crate::parse::{LidarAngle, LidarDistance, LidarPoint};
 use crate::units::*;
 
@@ -51,17 +53,21 @@ impl PolarLine {
     /// Renvoit l'angle aigu entre deux lignes polaires
     /// (faire un schéma pour se convaincre rapidement de la formule)
     fn smallest_angle_between(&self, other: &Self) -> Rad {
-        let alpha = (self.angle - other.angle).mag();
-        alpha.min(Rad::HALF_TURN - alpha)
+        let alpha = (self.angle - other.angle).mag().val() % Rad::FULL_TURN.val();
+        if alpha > Rad::HALF_TURN.val() {
+            Rad::new(Rad::FULL_TURN.val() - alpha)
+        } else {
+            Rad::new(alpha)
+        }
     }
 
     /// Avec une tolérance
-    fn is_parallel_with(&self, other: &Self) -> bool {
+    fn is_approx_parallel_with(&self, other: &Self) -> bool {
         self.smallest_angle_between(other) <= Rad::new(IS_PARALLEL_TOLERANCE)
     }
 
     /// Avec une tolérance
-    fn is_perpendicular_with(&self, other: &Self) -> bool {
+    fn is_approx_perpendicular_with(&self, other: &Self) -> bool {
         (self.smallest_angle_between(other) - Rad::QUARTER_TURN).mag()
             <= Rad::new(IS_PERPENDICULAR_TOLERANCE)
     }
@@ -82,12 +88,36 @@ impl PolarLine {
             self.distance.0 * self.angle.sin(),
         )
     }
+
+    /// Calcule ne point d'intersection de deux droites
+    /// Les droites ne doivent pas être parallèles pour que le résultat aie du sens
+    /// Redémontrer avec r = r0 / cos(theta - theta0)
+    fn intersect(&self, other: &Self) -> Option<PolarPoint> {
+        let cos_theta_0 = self.angle.sin_cos();
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct HoughLine {
     pub line: PolarLine,
     pub weight: u16,
+}
+
+/// ax + by + c = 0
+#[derive(Debug, Clone)]
+pub struct PolarPoint {
+    pub distance: Meters,
+    pub angle: Rad,
+}
+
+impl PolarPoint {
+    fn from_lidar_point(lidar_point: &LidarPoint) -> Self {
+        Self {
+            distance: lidar_point.distance.to_meters(),
+            angle: lidar_point.angle.to_deg().rad(),
+        }
+    }
 }
 
 /// ax + by + c = 0
@@ -161,7 +191,7 @@ const DISTANCE_RESOLUTION: LidarDistance = LidarDistance::cm(1);
 /// On compte 2x car il y a les distances positives et négatives
 const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2 / DISTANCE_RESOLUTION.0) as usize + 1;
 
-/// guide : https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html
+/// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
 fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
     // Création de la matrice de la transformation de Hough
     let mut accumulator = [[0u16; ANGLE_TAILLE]; DISTANCE_TAILLE];
@@ -340,13 +370,13 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
         let line = hough_line.line;
         if walls.perpendicular_wall_1.is_none() {
             // On essaie de déterminer si cette ligne peut-être la perpendiculaire 1
-            if line.is_perpendicular_with(&walls.first_wall.line) {
+            if line.is_approx_perpendicular_with(&walls.first_wall.line) {
                 walls.perpendicular_wall_1 = Some(*hough_line);
                 continue;
             }
             // On essaie de déterminer si cette ligne peut-être la parallèle
             // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
-            if line.is_parallel_with(&walls.first_wall.line)
+            if line.is_approx_parallel_with(&walls.first_wall.line)
                 && (line
                     .distance_center_with(&walls.first_wall.line)
                     .in_the_aera_of(FIELD_LENGTH)
@@ -360,14 +390,14 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
                     weight: _,
                 }) = walls.perpendicular_wall_1
                 {
-                    ok = ok && line.is_perpendicular_with(&perpendicular1)
+                    ok = ok && line.is_approx_perpendicular_with(&perpendicular1)
                 }
                 if let Some(HoughLine {
                     line: perpendicular2,
                     weight: _,
                 }) = walls.perpendicular_wall_2
                 {
-                    ok = ok && line.is_perpendicular_with(&perpendicular2)
+                    ok = ok && line.is_approx_perpendicular_with(&perpendicular2)
                 }
                 if ok {
                     walls.perpendicular_wall_1 = Some(*hough_line)
@@ -375,7 +405,7 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
             }
             // On essaie de déterminer si cette ligne peut-être la perpendiculaire 2
             // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
-            if line.is_perpendicular_with(&walls.first_wall.line) {
+            if line.is_approx_perpendicular_with(&walls.first_wall.line) {
                 let mut ok = true;
                 if let Some(HoughLine {
                     line: perpendicular1,
@@ -383,7 +413,7 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
                 }) = walls.perpendicular_wall_1
                 {
                     ok = ok
-                        && line.is_parallel_with(&perpendicular1)
+                        && line.is_approx_parallel_with(&perpendicular1)
                         && (line
                             .distance_center_with(&perpendicular1)
                             .in_the_aera_of(FIELD_LENGTH)
@@ -396,7 +426,7 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
                     weight: _,
                 }) = walls.parallele_wall
                 {
-                    ok = ok && line.is_perpendicular_with(&parallel)
+                    ok = ok && line.is_approx_perpendicular_with(&parallel)
                 }
                 if ok {
                     walls.perpendicular_wall_2 = Some(*hough_line)
@@ -418,14 +448,12 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analyze_tests_data::lidar_test_data::*;
     use crate::{
         basic_viewport::show_viewport,
         parse::{LidarAngle, LidarDistance},
     };
     use std::time::{Duration, Instant};
-    use crate::analyze_tests_data::lidar_test_data::*;
-    
-
 
     fn load_log(from: &str) -> Box<Vec<LidarPoint>> {
         let mut vector = Box::new(Vec::with_capacity(from.len() / 10));
@@ -443,6 +471,102 @@ mod tests {
         vector
     }
 
+    fn approx_equal_rad(a: Rad, b: Rad, epsilon: Rad) {
+        let mut diff = a - b;
+        if diff < Angle::ZERO {
+            diff = -diff;
+        }
+        if diff >= epsilon {
+            panic!("{} ~!= {}\n{:?} ~!= {:?}", a, b, a, b)
+        }
+    }
+
+    const APPROX_LIMIT: f64 = 0.000000001;
+
+    #[test]
+    fn test_same_angle() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
+        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(0.0), Rad::new(APPROX_LIMIT));
+    }
+
+    #[test]
+    fn test_opposite_angles() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::PI) };
+        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::PI), Rad::new(APPROX_LIMIT));
+    }
+
+    #[test]
+    fn test_acute_angles() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_4) }; // 45 degrees
+        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::FRAC_PI_4), Rad::new(APPROX_LIMIT));
+    }
+
+    #[test]
+    fn test_obtuse_angles() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_3) }; // 60 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // 90 degrees
+        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::FRAC_PI_6), Rad::new(APPROX_LIMIT));
+    }
+
+    #[test]
+    fn test_full_circle() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(2.0 * std::f64::consts::PI) }; // 360 degrees
+        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(0.0), Rad::new(APPROX_LIMIT));
+    }
+
+    #[test]
+    fn test_negative_angles() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(-std::f64::consts::FRAC_PI_4) }; // -45 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_4) }; // 45 degrees
+        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::FRAC_PI_2), Rad::new(APPROX_LIMIT));
+    }
+
+    #[test]
+    fn test_exact_parallel() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        assert!(line1.is_approx_parallel_with(&line2));
+    }
+
+    #[test]
+    fn test_near_parallel() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(IS_PARALLEL_TOLERANCE / 2.0) }; // Slightly off
+        assert!(line1.is_approx_parallel_with(&line2));
+    }
+
+    #[test]
+    fn test_not_parallel() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // 90 degrees
+        assert!(!line1.is_approx_parallel_with(&line2));
+    }
+
+    #[test]
+    fn test_exact_perpendicular() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // 90 degrees
+        assert!(line1.is_approx_perpendicular_with(&line2));
+    }
+
+    #[test]
+    fn test_near_perpendicular() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2 + IS_PERPENDICULAR_TOLERANCE / 2.0) }; // Slightly off
+        assert!(line1.is_approx_perpendicular_with(&line2));
+    }
+
+    #[test]
+    fn test_not_perpendicular() {
+        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_3) }; // 60 degrees
+        assert!(!line1.is_approx_perpendicular_with(&line2));
+    }
+
     #[test]
     fn bench_hough_accumulator() {
         let nb_essais: u32 = 50;
@@ -456,12 +580,16 @@ mod tests {
             }
         }
         let nb_tests = nb_essais * (u32::try_from(TESTS_DETECTION.len()).unwrap());
-        eprintln!("Bench Hough Accumulator (on {} values): {:#?}", nb_tests, moyenne / nb_tests)
+        eprintln!(
+            "Bench Hough Accumulator (on {} values): {:#?}",
+            nb_tests,
+            moyenne / nb_tests
+        )
     }
 
     #[test]
-    fn test1() {
-        let data = load_log(TEST_HAUT_GAUCHE_ORIENTE_DROITE);
+    fn test_1() {
+        let data = load_log(TEST_CENTRE_GAUCHE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
         println!("{:?}", ha.len());
@@ -483,7 +611,8 @@ mod tests {
             *data,
             ha.iter().map(|e| e.line).collect(),
             walls_vec.into_iter().map(|e| e.line).collect(),
-        ).unwrap();
+        )
+        .unwrap();
 
         println!("{:?}", walls);
         // show_viewport(
