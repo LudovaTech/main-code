@@ -4,6 +4,7 @@ use std::fmt::Display;
 
 use radians::Angle;
 
+use crate::analyze_tests_data::lidar_test_data::TEST_HAUT_DROITE_ORIENTE_GAUCHE;
 use crate::parse::{LidarAngle, LidarDistance, LidarPoint};
 use crate::units::*;
 
@@ -89,12 +90,32 @@ impl PolarLine {
         )
     }
 
-    /// Calcule ne point d'intersection de deux droites
+    /// Calcule le point d'intersection de deux droites
     /// Les droites ne doivent pas être parallèles pour que le résultat aie du sens
     /// Redémontrer avec r = r0 / cos(theta - theta0)
     fn intersect(&self, other: &Self) -> Option<PolarPoint> {
-        let cos_theta_0 = self.angle.sin_cos();
-        todo!()
+        let self_angle_wrap = Rad::new(self.angle.val() % Rad::FULL_TURN.val());
+        let other_angle_wrap = Rad::new(other.angle.val() % Rad::FULL_TURN.val());
+        let denom = self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin();
+        dbg!(self.is_approx_parallel_with(other));
+        dbg!(&denom);
+        // TODO
+        if denom.abs() < 1e-10 {
+            // Les droites sont alignés
+            return None;
+        }
+        dbg!(self.distance.0 * other_angle_wrap.cos() - other.distance.0 * self_angle_wrap.cos());
+        let theta = Rad::atan2(
+            self.distance.0 * other_angle_wrap.cos() - other.distance.0 * self_angle_wrap.cos(),
+            denom,
+        );
+
+        println!("{}, {}", denom, theta);
+
+        let theta = theta.mag();
+
+        let r = Meters(self.distance.0 / (theta - self_angle_wrap).cos());
+        Some(PolarPoint { distance: r, angle: theta })
     }
 }
 
@@ -471,100 +492,265 @@ mod tests {
         vector
     }
 
-    fn approx_equal_rad(a: Rad, b: Rad, epsilon: Rad) {
+
+    fn approx_equal_rad(a: Rad, b: Rad, epsilon: Rad) -> Result<(), String> {
         let mut diff = a - b;
         if diff < Angle::ZERO {
             diff = -diff;
         }
         if diff >= epsilon {
-            panic!("{} ~!= {}\n{:?} ~!= {:?}", a, b, a, b)
+            return Err(format!("{} ~!= {}  {:?} ~!= {:?}", a, b, a, b))
         }
+        Ok(())
     }
 
-    const APPROX_LIMIT: f64 = 0.000000001;
+    fn approx_equal_meters(a: Meters, b: Meters, epsilon: Meters) -> Result<(), String> {
+        if (a.0 - b.0).abs() >= epsilon.0 {
+            return Err(format!("{:?} ~!= {:?}", a, b))
+        }
+        Ok(())
+    }
+
+    const GEOGEBRA_LIMIT: f64 = 1e-2;
+    const APPROX_LIMIT: f64 = 1e-10;
 
     #[test]
     fn test_same_angle() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
-        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(0.0), Rad::new(APPROX_LIMIT));
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        };
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        };
+        approx_equal_rad(
+            line1.smallest_angle_between(&line2),
+            Rad::new(0.0),
+            Rad::new(APPROX_LIMIT),
+        ).unwrap();
     }
 
     #[test]
     fn test_opposite_angles() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::PI) };
-        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::PI), Rad::new(APPROX_LIMIT));
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        };
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::PI),
+        };
+        approx_equal_rad(
+            line1.smallest_angle_between(&line2),
+            Rad::new(std::f64::consts::PI),
+            Rad::new(APPROX_LIMIT),
+        ).unwrap();
     }
 
     #[test]
     fn test_acute_angles() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_4) }; // 45 degrees
-        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::FRAC_PI_4), Rad::new(APPROX_LIMIT));
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        };
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_4),
+        }; // 45 degrees
+        approx_equal_rad(
+            line1.smallest_angle_between(&line2),
+            Rad::new(std::f64::consts::FRAC_PI_4),
+            Rad::new(APPROX_LIMIT),
+        ).unwrap();
     }
 
     #[test]
     fn test_obtuse_angles() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_3) }; // 60 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // 90 degrees
-        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::FRAC_PI_6), Rad::new(APPROX_LIMIT));
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_3),
+        }; // 60 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_2),
+        }; // 90 degrees
+        approx_equal_rad(
+            line1.smallest_angle_between(&line2),
+            Rad::new(std::f64::consts::FRAC_PI_6),
+            Rad::new(APPROX_LIMIT),
+        ).unwrap();
     }
 
     #[test]
     fn test_full_circle() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) };
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(2.0 * std::f64::consts::PI) }; // 360 degrees
-        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(0.0), Rad::new(APPROX_LIMIT));
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        };
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(2.0 * std::f64::consts::PI),
+        }; // 360 degrees
+        approx_equal_rad(
+            line1.smallest_angle_between(&line2),
+            Rad::new(0.0),
+            Rad::new(APPROX_LIMIT),
+        ).unwrap();
     }
 
     #[test]
     fn test_negative_angles() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(-std::f64::consts::FRAC_PI_4) }; // -45 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_4) }; // 45 degrees
-        approx_equal_rad(line1.smallest_angle_between(&line2), Rad::new(std::f64::consts::FRAC_PI_2), Rad::new(APPROX_LIMIT));
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(-std::f64::consts::FRAC_PI_4),
+        }; // -45 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_4),
+        }; // 45 degrees
+        approx_equal_rad(
+            line1.smallest_angle_between(&line2),
+            Rad::new(std::f64::consts::FRAC_PI_2),
+            Rad::new(APPROX_LIMIT),
+        ).unwrap();
     }
 
     #[test]
     fn test_exact_parallel() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
         assert!(line1.is_approx_parallel_with(&line2));
     }
 
     #[test]
     fn test_near_parallel() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(IS_PARALLEL_TOLERANCE / 2.0) }; // Slightly off
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(IS_PARALLEL_TOLERANCE / 2.0),
+        }; // Slightly off
         assert!(line1.is_approx_parallel_with(&line2));
     }
 
     #[test]
     fn test_not_parallel() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // 90 degrees
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_2),
+        }; // 90 degrees
         assert!(!line1.is_approx_parallel_with(&line2));
     }
 
     #[test]
     fn test_exact_perpendicular() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // 90 degrees
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_2),
+        }; // 90 degrees
         assert!(line1.is_approx_perpendicular_with(&line2));
     }
 
     #[test]
     fn test_near_perpendicular() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_2 + IS_PERPENDICULAR_TOLERANCE / 2.0) }; // Slightly off
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_2 + IS_PERPENDICULAR_TOLERANCE / 2.0),
+        }; // Slightly off
         assert!(line1.is_approx_perpendicular_with(&line2));
     }
 
     #[test]
     fn test_not_perpendicular() {
-        let line1 = PolarLine { distance: Meters(1.0), angle: Rad::new(0.0) }; // 0 degrees
-        let line2 = PolarLine { distance: Meters(1.0), angle: Rad::new(std::f64::consts::FRAC_PI_3) }; // 60 degrees
+        let line1 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(0.0),
+        }; // 0 degrees
+        let line2 = PolarLine {
+            distance: Meters(1.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_3),
+        }; // 60 degrees
         assert!(!line1.is_approx_perpendicular_with(&line2));
+    }
+
+    #[test]
+    fn test_intersection_normal() {
+        let line1 = PolarLine { distance: Meters(5.0), angle: Rad::new(0.0) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(5.0), angle: Rad::new(std::f64::consts::FRAC_PI_4) }; // Ligne à 45 degrés
+
+        let intersection = line1.intersect(&line2);
+        assert!(intersection.is_some());
+
+        let point = intersection.unwrap();
+        // Vérifié sur geogebra
+        approx_equal_rad(point.angle, Rad::new(0.39), Rad::new(GEOGEBRA_LIMIT)).unwrap();
+        approx_equal_meters(point.distance, Meters(5.41), Meters(GEOGEBRA_LIMIT)).unwrap();
+    }
+
+    #[test]
+    fn test_intersection_more_than_full_circle() {
+        let line1 = PolarLine { distance: Meters(5.0), angle: Rad::new(5.0) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(10.0), angle: Rad::new(5.0) }; // Ligne horizontale parallèle
+
+        let intersection = line1.intersect(&line2);
+        dbg!(&intersection);
+        assert!(intersection.is_none()); // Pas d'intersection
+    }
+
+    #[test]
+    fn test_intersection_coincident_lines() {
+        let line1 = PolarLine { distance: Meters(5.0), angle: Rad::new(0.0) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(5.0), angle: Rad::new(0.0) }; // Même ligne
+
+        let intersection = line1.intersect(&line2);
+        assert!(intersection.is_none()); // Pas d'intersection unique
+    }
+
+    #[test]
+    fn test_intersection_with_different_angles() {
+        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::new(0.5) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(8.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // Ligne verticale
+
+        let intersection = line1.intersect(&line2);
+        assert!(intersection.is_some());
+
+        let point = intersection.unwrap();
+        approx_equal_rad(point.angle, Rad::new(0.85), Rad::new(GEOGEBRA_LIMIT)).unwrap();
+        approx_equal_meters(point.distance, Meters(10.64), Meters(GEOGEBRA_LIMIT)).unwrap();
+    }
+
+    #[test]
+    fn test_intersection_different_quarters() {
+        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::new(0.5) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(8.0), angle: Rad::new(std::f64::consts::PI + 0.1) }; // Ligne verticale
+
+        let intersection = line1.intersect(&line2);
+        assert!(intersection.is_some());
+
+        let point = intersection.unwrap();
+        approx_equal_rad(point.angle, Rad::new(1.85), Rad::new(GEOGEBRA_LIMIT)).unwrap();
+        approx_equal_meters(point.distance, Meters(45.31), Meters(GEOGEBRA_LIMIT)).unwrap();
     }
 
     #[test]
