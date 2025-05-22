@@ -43,6 +43,9 @@ use crate::units::*;
 const IS_PERPENDICULAR_TOLERANCE: f64 = 0.2;
 /// en radians
 const IS_PARALLEL_TOLERANCE: f64 = 0.2;
+/// en radians
+const IS_PARALLEL_EXACT_TOLERANCE: f64 = 10e-5;
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct PolarLine {
@@ -60,6 +63,11 @@ impl PolarLine {
         } else {
             Rad::new(alpha)
         }
+    }
+
+    /// Avec une tolérance
+    fn is_parallel_with(&self, other: &Self) -> bool {
+        self.smallest_angle_between(other) <= Rad::new(IS_PARALLEL_EXACT_TOLERANCE)
     }
 
     /// Avec une tolérance
@@ -96,23 +104,14 @@ impl PolarLine {
     fn intersect(&self, other: &Self) -> Option<PolarPoint> {
         let self_angle_wrap = Rad::new(self.angle.val() % Rad::FULL_TURN.val());
         let other_angle_wrap = Rad::new(other.angle.val() % Rad::FULL_TURN.val());
-        let denom = self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin();
-        dbg!(self.is_approx_parallel_with(other));
-        dbg!(&denom);
-        // TODO
-        if denom.abs() < 1e-10 {
+        if self.is_parallel_with(other) {
             // Les droites sont alignés
             return None;
         }
-        dbg!(self.distance.0 * other_angle_wrap.cos() - other.distance.0 * self_angle_wrap.cos());
         let theta = Rad::atan2(
             self.distance.0 * other_angle_wrap.cos() - other.distance.0 * self_angle_wrap.cos(),
-            denom,
-        );
-
-        println!("{}, {}", denom, theta);
-
-        let theta = theta.mag();
+            self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin(),
+        ).mag();
 
         let r = Meters(self.distance.0 / (theta - self_angle_wrap).cos());
         Some(PolarPoint { distance: r, angle: theta })
@@ -751,6 +750,32 @@ mod tests {
         let point = intersection.unwrap();
         approx_equal_rad(point.angle, Rad::new(1.85), Rad::new(GEOGEBRA_LIMIT)).unwrap();
         approx_equal_meters(point.distance, Meters(45.31), Meters(GEOGEBRA_LIMIT)).unwrap();
+    }
+
+    #[test]
+    fn test_intersection_quasi_inf() {
+        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::FULL_TURN + Rad::new(0.001) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(2.4), angle: Rad::HALF_TURN }; // Ligne verticale
+
+        let intersection = line1.intersect(&line2);
+        assert!(intersection.is_some());
+
+        let point = intersection.unwrap();
+        approx_equal_rad(point.angle, Rad::new(1.57), Rad::new(GEOGEBRA_LIMIT)).unwrap();
+        approx_equal_meters(point.distance, Meters(12_400.0), Meters(GEOGEBRA_LIMIT)).unwrap();
+    }
+
+    #[test]
+    fn test_intersection_up() {
+        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::new(2.0) }; // Ligne horizontale
+        let line2 = PolarLine { distance: Meters(2.4), angle: Rad::HALF_TURN }; // Ligne verticale
+
+        let intersection = line1.intersect(&line2);
+        assert!(intersection.is_some());
+
+        let point = intersection.unwrap();
+        approx_equal_rad(point.angle, Rad::new(1.81), Rad::new(GEOGEBRA_LIMIT)).unwrap();
+        approx_equal_meters(point.distance, Meters(10.19), Meters(GEOGEBRA_LIMIT)).unwrap();
     }
 
     #[test]
