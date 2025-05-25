@@ -287,14 +287,14 @@ const FIELD_LENGTH: Meters = Meters::cm(243.0);
 const FIELD_WIDTH: Meters = Meters::cm(182.0);
 
 #[derive(Debug, Clone, Copy)]
-enum WallLine {
+pub enum WallLine {
     HoughLine(HoughLine),
     GuessedLine(GuessedLine),
 }
 
 impl WallLine {
     #[inline]
-    fn line(&self) -> PolarLine {
+    pub fn line(&self) -> PolarLine {
         match self {
             Self::HoughLine(hought) => hought.line,
             Self::GuessedLine(guessed) => guessed.line,
@@ -545,13 +545,14 @@ fn try_to_complete_walls_from_uncomplete_data(
             })
         }
 
-
         _ => Ok(detected_walls),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use eframe::egui;
+
     use super::*;
     use crate::analyze_tests_data::lidar_test_data::*;
     use crate::{
@@ -932,6 +933,7 @@ mod tests {
 
     #[test]
     fn test_1() {
+        use crate::basic_viewport::ViewportLine;
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
         let data = load_log(TEST_HAUT_DROITE_ORIENTE_DROITE);
@@ -939,6 +941,8 @@ mod tests {
         let ha = build_hough_accumulator(&data);
         println!("{:?}", ha.len());
         let walls = find_walls(ha.iter().copied().collect()).unwrap();
+
+        let walls = try_to_complete_walls_from_uncomplete_data(walls).unwrap();
 
         let mut walls_vec = vec![walls.first_wall];
 
@@ -954,8 +958,22 @@ mod tests {
 
         show_viewport(
             *data,
-            ha.iter().map(|e| e.line).collect(),
-            walls_vec.into_iter().map(|e| e.line()).collect(),
+            ha.iter()
+                .map(|e| ViewportLine {
+                    line: e.line,
+                    stroke: egui::Stroke::new(5.0, egui::Color32::DARK_RED),
+                }) // egui::Stroke::new(5.0, egui::Color32::BLUE),
+                .chain(walls_vec.into_iter().map(|e| match e {
+                    WallLine::GuessedLine(GuessedLine { line }) => ViewportLine {
+                        line: line,
+                        stroke: egui::Stroke::new(5.0, egui::Color32::DARK_BLUE),
+                    },
+                    WallLine::HoughLine(HoughLine { line, weight: _ }) => ViewportLine {
+                        line: line,
+                        stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+                    },
+                }))
+                .collect(),
         )
         .unwrap();
 
