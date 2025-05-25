@@ -46,7 +46,6 @@ const IS_PARALLEL_TOLERANCE: f64 = 0.2;
 /// en radians
 const IS_PARALLEL_EXACT_TOLERANCE: f64 = 10e-5;
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct PolarLine {
     pub distance: Meters,
@@ -57,9 +56,9 @@ impl PolarLine {
     /// Renvoit l'angle aigu entre deux lignes polaires
     /// (faire un schéma pour se convaincre rapidement de la formule)
     fn smallest_angle_between(&self, other: &Self) -> Rad {
-        let alpha = (self.angle - other.angle).mag().val() % Rad::FULL_TURN.val();
-        if alpha > Rad::HALF_TURN.val() {
-            Rad::new(Rad::FULL_TURN.val() - alpha)
+        let alpha = (self.angle - other.angle).mag().val() % Rad::HALF_TURN.val();
+        if alpha >= Rad::QUARTER_TURN.val() {
+            Rad::new(Rad::HALF_TURN.val() - alpha)
         } else {
             Rad::new(alpha)
         }
@@ -111,10 +110,14 @@ impl PolarLine {
         let theta = Rad::atan2(
             self.distance.0 * other_angle_wrap.cos() - other.distance.0 * self_angle_wrap.cos(),
             self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin(),
-        ).mag();
+        )
+        .mag();
 
         let r = Meters(self.distance.0 / (theta - self_angle_wrap).cos());
-        Some(PolarPoint { distance: r, angle: theta })
+        Some(PolarPoint {
+            distance: r,
+            angle: theta,
+        })
     }
 }
 
@@ -384,73 +387,87 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
         return Err(WallFinderError::DetectedLineEmpty);
     }
     let mut walls = WallsConstruction::new(detected_lines[0]);
-    let mut detected_line_iter = detected_lines.iter();
-    detected_line_iter.next(); // skip first
-    for hough_line in detected_line_iter {
+    for hough_line in detected_lines.iter().skip(1) {
         let line = hough_line.line;
-        if walls.perpendicular_wall_1.is_none() {
-            // On essaie de déterminer si cette ligne peut-être la perpendiculaire 1
-            if line.is_approx_perpendicular_with(&walls.first_wall.line) {
-                walls.perpendicular_wall_1 = Some(*hough_line);
-                continue;
-            }
-            // On essaie de déterminer si cette ligne peut-être la parallèle
-            // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
-            if line.is_approx_parallel_with(&walls.first_wall.line)
-                && (line
+        // On essaie de déterminer si cette ligne peut-être la perpendiculaire 1
+        if walls.perpendicular_wall_1.is_none()
+            && line.is_approx_perpendicular_with(&walls.first_wall.line)
+        {
+            walls.perpendicular_wall_1 = Some(*hough_line);
+            continue;
+        }
+        // On essaie de déterminer si cette ligne peut-être la parallèle
+        // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
+        println!(
+            "distance center {:?}, vise {:?}, {:?} pourtant {:?} donc {:?}",
+            line.distance_center_with(&walls.first_wall.line),
+            FIELD_LENGTH,
+            FIELD_WIDTH,
+            line.distance_center_with(&walls.first_wall.line)
+                .in_the_aera_of(FIELD_WIDTH),
+                line.smallest_angle_between(&walls.first_wall.line)
+        );
+        if walls.parallele_wall.is_none()
+            && line.is_approx_parallel_with(&walls.first_wall.line)
+            && (line
+                .distance_center_with(&walls.first_wall.line)
+                .in_the_aera_of(FIELD_LENGTH)
+                || line
                     .distance_center_with(&walls.first_wall.line)
-                    .in_the_aera_of(FIELD_LENGTH)
-                    || line
-                        .distance_center_with(&walls.first_wall.line)
-                        .in_the_aera_of(FIELD_WIDTH))
+                    .in_the_aera_of(FIELD_WIDTH))
+        {
+            println!("inside");
+            let mut ok = true;
+            if let Some(HoughLine {
+                line: perpendicular1,
+                weight: _,
+            }) = walls.perpendicular_wall_1
             {
-                let mut ok = true;
-                if let Some(HoughLine {
-                    line: perpendicular1,
-                    weight: _,
-                }) = walls.perpendicular_wall_1
-                {
-                    ok = ok && line.is_approx_perpendicular_with(&perpendicular1)
-                }
-                if let Some(HoughLine {
-                    line: perpendicular2,
-                    weight: _,
-                }) = walls.perpendicular_wall_2
-                {
-                    ok = ok && line.is_approx_perpendicular_with(&perpendicular2)
-                }
-                if ok {
-                    walls.perpendicular_wall_1 = Some(*hough_line)
-                }
+                dbg!(line.is_approx_perpendicular_with(&perpendicular1));
+                ok = ok && line.is_approx_perpendicular_with(&perpendicular1)
             }
-            // On essaie de déterminer si cette ligne peut-être la perpendiculaire 2
-            // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
-            if line.is_approx_perpendicular_with(&walls.first_wall.line) {
-                let mut ok = true;
-                if let Some(HoughLine {
-                    line: perpendicular1,
-                    weight: _,
-                }) = walls.perpendicular_wall_1
-                {
-                    ok = ok
-                        && line.is_approx_parallel_with(&perpendicular1)
-                        && (line
+            if let Some(HoughLine {
+                line: perpendicular2,
+                weight: _,
+            }) = walls.perpendicular_wall_2
+            {
+                dbg!(line.is_approx_perpendicular_with(&perpendicular2));
+                ok = ok && line.is_approx_perpendicular_with(&perpendicular2)
+            }
+            ok = true;
+            if ok {
+                walls.parallele_wall = Some(*hough_line)
+            }
+        }
+        // On essaie de déterminer si cette ligne peut-être la perpendiculaire 2
+        // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
+        if walls.perpendicular_wall_2.is_none()
+            && line.is_approx_perpendicular_with(&walls.first_wall.line)
+        {
+            let mut ok = true;
+            if let Some(HoughLine {
+                line: perpendicular1,
+                weight: _,
+            }) = walls.perpendicular_wall_1
+            {
+                ok = ok
+                    && line.is_approx_parallel_with(&perpendicular1)
+                    && (line
+                        .distance_center_with(&perpendicular1)
+                        .in_the_aera_of(FIELD_LENGTH)
+                        || line
                             .distance_center_with(&perpendicular1)
-                            .in_the_aera_of(FIELD_LENGTH)
-                            || line
-                                .distance_center_with(&perpendicular1)
-                                .in_the_aera_of(FIELD_WIDTH))
-                }
-                if let Some(HoughLine {
-                    line: parallel,
-                    weight: _,
-                }) = walls.parallele_wall
-                {
-                    ok = ok && line.is_approx_perpendicular_with(&parallel)
-                }
-                if ok {
-                    walls.perpendicular_wall_2 = Some(*hough_line)
-                }
+                            .in_the_aera_of(FIELD_WIDTH))
+            }
+            if let Some(HoughLine {
+                line: parallel,
+                weight: _,
+            }) = walls.parallele_wall
+            {
+                ok = ok && line.is_approx_perpendicular_with(&parallel)
+            }
+            if ok {
+                walls.perpendicular_wall_2 = Some(*hough_line)
             }
         }
         if walls.is_complete() {
@@ -491,21 +508,20 @@ mod tests {
         vector
     }
 
-
     fn approx_equal_rad(a: Rad, b: Rad, epsilon: Rad) -> Result<(), String> {
         let mut diff = a - b;
         if diff < Angle::ZERO {
             diff = -diff;
         }
         if diff >= epsilon {
-            return Err(format!("{} ~!= {}  {:?} ~!= {:?}", a, b, a, b))
+            return Err(format!("{} ~!= {}  {:?} ~!= {:?}", a, b, a, b));
         }
         Ok(())
     }
 
     fn approx_equal_meters(a: Meters, b: Meters, epsilon: Meters) -> Result<(), String> {
         if (a.0 - b.0).abs() >= epsilon.0 {
-            return Err(format!("{:?} ~!= {:?}", a, b))
+            return Err(format!("{:?} ~!= {:?}", a, b));
         }
         Ok(())
     }
@@ -527,7 +543,8 @@ mod tests {
             line1.smallest_angle_between(&line2),
             Rad::new(0.0),
             Rad::new(APPROX_LIMIT),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -544,7 +561,8 @@ mod tests {
             line1.smallest_angle_between(&line2),
             Rad::new(std::f64::consts::PI),
             Rad::new(APPROX_LIMIT),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -561,7 +579,8 @@ mod tests {
             line1.smallest_angle_between(&line2),
             Rad::new(std::f64::consts::FRAC_PI_4),
             Rad::new(APPROX_LIMIT),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -578,7 +597,8 @@ mod tests {
             line1.smallest_angle_between(&line2),
             Rad::new(std::f64::consts::FRAC_PI_6),
             Rad::new(APPROX_LIMIT),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -595,7 +615,8 @@ mod tests {
             line1.smallest_angle_between(&line2),
             Rad::new(0.0),
             Rad::new(APPROX_LIMIT),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -612,7 +633,8 @@ mod tests {
             line1.smallest_angle_between(&line2),
             Rad::new(std::f64::consts::FRAC_PI_2),
             Rad::new(APPROX_LIMIT),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -695,8 +717,14 @@ mod tests {
 
     #[test]
     fn test_intersection_normal() {
-        let line1 = PolarLine { distance: Meters(5.0), angle: Rad::new(0.0) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(5.0), angle: Rad::new(std::f64::consts::FRAC_PI_4) }; // Ligne à 45 degrés
+        let line1 = PolarLine {
+            distance: Meters(5.0),
+            angle: Rad::new(0.0),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(5.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_4),
+        }; // Ligne à 45 degrés
 
         let intersection = line1.intersect(&line2);
         assert!(intersection.is_some());
@@ -709,8 +737,14 @@ mod tests {
 
     #[test]
     fn test_intersection_more_than_full_circle() {
-        let line1 = PolarLine { distance: Meters(5.0), angle: Rad::new(5.0) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(10.0), angle: Rad::new(5.0) }; // Ligne horizontale parallèle
+        let line1 = PolarLine {
+            distance: Meters(5.0),
+            angle: Rad::new(5.0),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(10.0),
+            angle: Rad::new(5.0),
+        }; // Ligne horizontale parallèle
 
         let intersection = line1.intersect(&line2);
         dbg!(&intersection);
@@ -719,8 +753,14 @@ mod tests {
 
     #[test]
     fn test_intersection_coincident_lines() {
-        let line1 = PolarLine { distance: Meters(5.0), angle: Rad::new(0.0) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(5.0), angle: Rad::new(0.0) }; // Même ligne
+        let line1 = PolarLine {
+            distance: Meters(5.0),
+            angle: Rad::new(0.0),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(5.0),
+            angle: Rad::new(0.0),
+        }; // Même ligne
 
         let intersection = line1.intersect(&line2);
         assert!(intersection.is_none()); // Pas d'intersection unique
@@ -728,8 +768,14 @@ mod tests {
 
     #[test]
     fn test_intersection_with_different_angles() {
-        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::new(0.5) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(8.0), angle: Rad::new(std::f64::consts::FRAC_PI_2) }; // Ligne verticale
+        let line1 = PolarLine {
+            distance: Meters(10.0),
+            angle: Rad::new(0.5),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(8.0),
+            angle: Rad::new(std::f64::consts::FRAC_PI_2),
+        }; // Ligne verticale
 
         let intersection = line1.intersect(&line2);
         assert!(intersection.is_some());
@@ -741,8 +787,14 @@ mod tests {
 
     #[test]
     fn test_intersection_different_quarters() {
-        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::new(0.5) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(8.0), angle: Rad::new(std::f64::consts::PI + 0.1) }; // Ligne verticale
+        let line1 = PolarLine {
+            distance: Meters(10.0),
+            angle: Rad::new(0.5),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(8.0),
+            angle: Rad::new(std::f64::consts::PI + 0.1),
+        }; // Ligne verticale
 
         let intersection = line1.intersect(&line2);
         assert!(intersection.is_some());
@@ -754,8 +806,14 @@ mod tests {
 
     #[test]
     fn test_intersection_quasi_inf() {
-        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::FULL_TURN + Rad::new(0.001) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(2.4), angle: Rad::HALF_TURN }; // Ligne verticale
+        let line1 = PolarLine {
+            distance: Meters(10.0),
+            angle: Rad::FULL_TURN + Rad::new(0.001),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(2.4),
+            angle: Rad::HALF_TURN,
+        }; // Ligne verticale
 
         let intersection = line1.intersect(&line2);
         assert!(intersection.is_some());
@@ -767,8 +825,14 @@ mod tests {
 
     #[test]
     fn test_intersection_up() {
-        let line1 = PolarLine { distance: Meters(10.0), angle: Rad::new(2.0) }; // Ligne horizontale
-        let line2 = PolarLine { distance: Meters(2.4), angle: Rad::HALF_TURN }; // Ligne verticale
+        let line1 = PolarLine {
+            distance: Meters(10.0),
+            angle: Rad::new(2.0),
+        }; // Ligne horizontale
+        let line2 = PolarLine {
+            distance: Meters(2.4),
+            angle: Rad::HALF_TURN,
+        }; // Ligne verticale
 
         let intersection = line1.intersect(&line2);
         assert!(intersection.is_some());
@@ -825,7 +889,8 @@ mod tests {
         )
         .unwrap();
 
-        println!("{:?}", walls);
+        println!("{:#?}", walls);
+        panic!("show");
         // show_viewport(
         //     *data,
         //     ha.into_iter().map(|e| e.line).collect(),
