@@ -2,9 +2,6 @@ use std::cmp::Reverse;
 use std::error::Error;
 use std::fmt::Display;
 
-use radians::Angle;
-
-use crate::analyze_tests_data::lidar_test_data::TEST_HAUT_DROITE_ORIENTE_GAUCHE;
 use crate::parse::{LidarAngle, LidarDistance, LidarPoint};
 use crate::units::*;
 
@@ -290,17 +287,38 @@ const FIELD_LENGTH: Meters = Meters::cm(243.0);
 const FIELD_WIDTH: Meters = Meters::cm(182.0);
 
 #[derive(Debug, Clone, Copy)]
+enum WallLine {
+    HoughLine(HoughLine),
+    GuessedLine(GuessedLine),
+}
+
+impl WallLine {
+    #[inline]
+    fn line(&self) -> PolarLine {
+        match self {
+            Self::HoughLine(hought) => hought.line,
+            Self::GuessedLine(guessed) => guessed.line,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GuessedLine {
+    line: PolarLine,
+}
+
+#[derive(Debug, Clone, Copy)]
 struct WallsConstruction {
-    first_wall: HoughLine,
-    parallele_wall: Option<HoughLine>,
-    perpendicular_wall_1: Option<HoughLine>,
-    perpendicular_wall_2: Option<HoughLine>,
+    first_wall: WallLine,
+    parallele_wall: Option<WallLine>,
+    perpendicular_wall_1: Option<WallLine>,
+    perpendicular_wall_2: Option<WallLine>,
 }
 
 impl WallsConstruction {
     fn new(first_wall: HoughLine) -> WallsConstruction {
         WallsConstruction {
-            first_wall: first_wall,
+            first_wall: WallLine::HoughLine(first_wall),
             parallele_wall: None,
             perpendicular_wall_1: None,
             perpendicular_wall_2: None,
@@ -328,10 +346,10 @@ impl WallsConstruction {
 
 #[derive(Debug, Clone, Copy)]
 struct Walls {
-    first_wall: HoughLine,
-    parallele_wall: HoughLine,
-    perpendicular_wall_1: HoughLine,
-    perpendicular_wall_2: HoughLine,
+    first_wall: WallLine,
+    parallele_wall: WallLine,
+    perpendicular_wall_1: WallLine,
+    perpendicular_wall_2: WallLine,
 }
 
 struct WallsIntoIterator {
@@ -339,33 +357,33 @@ struct WallsIntoIterator {
     step: u8,
 }
 
-impl IntoIterator for Walls {
-    type IntoIter = WallsIntoIterator;
-    type Item = HoughLine;
+// impl IntoIterator for Walls {
+//     type IntoIter = WallsIntoIterator;
+//     type Item = HoughLine;
 
-    fn into_iter(self) -> Self::IntoIter {
-        WallsIntoIterator {
-            walls: self,
-            step: 0,
-        }
-    }
-}
+//     fn into_iter(self) -> Self::IntoIter {
+//         WallsIntoIterator {
+//             walls: self,
+//             step: 0,
+//         }
+//     }
+// }
 
-impl Iterator for WallsIntoIterator {
-    type Item = HoughLine;
+// impl Iterator for WallsIntoIterator {
+//     type Item = HoughLine;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = match self.step {
-            0 => self.walls.first_wall,
-            1 => self.walls.perpendicular_wall_1,
-            2 => self.walls.parallele_wall,
-            3 => self.walls.perpendicular_wall_2,
-            _ => return None,
-        };
-        self.step += 1;
-        Some(result)
-    }
-}
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let result = match self.step {
+//             0 => self.walls.first_wall,
+//             1 => self.walls.perpendicular_wall_1,
+//             2 => self.walls.parallele_wall,
+//             3 => self.walls.perpendicular_wall_2,
+//             _ => return None,
+//         };
+//         self.step += 1;
+//         Some(result)
+//     }
+// }
 
 #[derive(Debug)]
 enum WallFinderError {
@@ -391,83 +409,67 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
         let line = hough_line.line;
         // On essaie de déterminer si cette ligne peut-être la perpendiculaire 1
         if walls.perpendicular_wall_1.is_none()
-            && line.is_approx_perpendicular_with(&walls.first_wall.line)
+            && line.is_approx_perpendicular_with(&walls.first_wall.line())
         {
-            walls.perpendicular_wall_1 = Some(*hough_line);
+            walls.perpendicular_wall_1 = Some(WallLine::HoughLine(*hough_line));
             continue;
         }
         // On essaie de déterminer si cette ligne peut-être la parallèle
         // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
         println!(
             "distance center {:?}, vise {:?}, {:?} pourtant {:?} donc {:?}",
-            line.distance_center_with(&walls.first_wall.line),
+            line.distance_center_with(&walls.first_wall.line()),
             FIELD_LENGTH,
             FIELD_WIDTH,
-            line.distance_center_with(&walls.first_wall.line)
+            line.distance_center_with(&walls.first_wall.line())
                 .in_the_aera_of(FIELD_WIDTH),
-                line.smallest_angle_between(&walls.first_wall.line)
+            line.smallest_angle_between(&walls.first_wall.line())
         );
         if walls.parallele_wall.is_none()
-            && line.is_approx_parallel_with(&walls.first_wall.line)
+            && line.is_approx_parallel_with(&walls.first_wall.line())
             && (line
-                .distance_center_with(&walls.first_wall.line)
+                .distance_center_with(&walls.first_wall.line())
                 .in_the_aera_of(FIELD_LENGTH)
                 || line
-                    .distance_center_with(&walls.first_wall.line)
+                    .distance_center_with(&walls.first_wall.line())
                     .in_the_aera_of(FIELD_WIDTH))
         {
             println!("inside");
             let mut ok = true;
-            if let Some(HoughLine {
-                line: perpendicular1,
-                weight: _,
-            }) = walls.perpendicular_wall_1
-            {
-                dbg!(line.is_approx_perpendicular_with(&perpendicular1));
-                ok = ok && line.is_approx_perpendicular_with(&perpendicular1)
+            if let Some(perpendicular1) = walls.perpendicular_wall_1 {
+                dbg!(line.is_approx_perpendicular_with(&perpendicular1.line()));
+                ok = ok && line.is_approx_perpendicular_with(&perpendicular1.line())
             }
-            if let Some(HoughLine {
-                line: perpendicular2,
-                weight: _,
-            }) = walls.perpendicular_wall_2
-            {
-                dbg!(line.is_approx_perpendicular_with(&perpendicular2));
-                ok = ok && line.is_approx_perpendicular_with(&perpendicular2)
+            if let Some(perpendicular2) = walls.perpendicular_wall_2 {
+                dbg!(line.is_approx_perpendicular_with(&perpendicular2.line()));
+                ok = ok && line.is_approx_perpendicular_with(&perpendicular2.line())
             }
             ok = true;
             if ok {
-                walls.parallele_wall = Some(*hough_line)
+                walls.parallele_wall = Some(WallLine::HoughLine(*hough_line))
             }
         }
         // On essaie de déterminer si cette ligne peut-être la perpendiculaire 2
         // TODO on ne checke pas si on a deux distances FIELD_LENGTH ou deux distances FIELD_WIDTH
         if walls.perpendicular_wall_2.is_none()
-            && line.is_approx_perpendicular_with(&walls.first_wall.line)
+            && line.is_approx_perpendicular_with(&walls.first_wall.line())
         {
             let mut ok = true;
-            if let Some(HoughLine {
-                line: perpendicular1,
-                weight: _,
-            }) = walls.perpendicular_wall_1
-            {
+            if let Some(perpendicular1) = walls.perpendicular_wall_1 {
                 ok = ok
-                    && line.is_approx_parallel_with(&perpendicular1)
+                    && line.is_approx_parallel_with(&perpendicular1.line())
                     && (line
-                        .distance_center_with(&perpendicular1)
+                        .distance_center_with(&perpendicular1.line())
                         .in_the_aera_of(FIELD_LENGTH)
                         || line
-                            .distance_center_with(&perpendicular1)
+                            .distance_center_with(&perpendicular1.line())
                             .in_the_aera_of(FIELD_WIDTH))
             }
-            if let Some(HoughLine {
-                line: parallel,
-                weight: _,
-            }) = walls.parallele_wall
-            {
-                ok = ok && line.is_approx_perpendicular_with(&parallel)
+            if let Some(parallele) = walls.parallele_wall {
+                ok = ok && line.is_approx_perpendicular_with(&parallele.line())
             }
             if ok {
-                walls.perpendicular_wall_2 = Some(*hough_line)
+                walls.perpendicular_wall_2 = Some(WallLine::HoughLine(*hough_line))
             }
         }
         if walls.is_complete() {
@@ -480,6 +482,72 @@ fn find_walls(detected_lines: Vec<HoughLine>) -> Result<WallsConstruction, WallF
     // walls
     //     .build_walls()
     //     .ok_or(WallFinderError::UnableToFindAllWalls)
+}
+
+fn try_to_complete_walls_from_uncomplete_data(
+    detected_walls: WallsConstruction,
+) -> Result<WallsConstruction, WallFinderError> {
+    // TODO 2 murs doivent suffire à l'avenir
+    match detected_walls {
+        WallsConstruction {
+            first_wall,
+            parallele_wall: Some(parallele_wall),
+            perpendicular_wall_1: Some(perpendicular_wall_1),
+            perpendicular_wall_2: None,
+        } => {
+            // On va deviner le mur perpendicular 2
+            // Note : on se rappelle que le robot est toujours sur le terrain et qu'on a donc un seul mur possible.
+            let space = if first_wall
+                .line()
+                .distance_center_with(&parallele_wall.line())
+                .in_the_aera_of(FIELD_LENGTH)
+            {
+                FIELD_WIDTH
+            } else {
+                FIELD_LENGTH
+            };
+            Ok(WallsConstruction {
+                perpendicular_wall_2: Some(WallLine::GuessedLine(GuessedLine {
+                    line: PolarLine {
+                        distance: -space + perpendicular_wall_1.line().distance,
+                        ..perpendicular_wall_1.line()
+                    },
+                })),
+                ..detected_walls
+            })
+        }
+
+        WallsConstruction {
+            first_wall,
+            parallele_wall: None,
+            perpendicular_wall_1: Some(perpendicular_wall_1),
+            perpendicular_wall_2: Some(perpendicular_wall_2),
+        } => {
+            // On va deviner le mur parallele
+            // Note : on se rappelle que le robot est toujours sur le terrain et qu'on a donc un seul mur possible.
+            let space = if perpendicular_wall_1
+                .line()
+                .distance_center_with(&perpendicular_wall_2.line())
+                .in_the_aera_of(FIELD_LENGTH)
+            {
+                FIELD_WIDTH
+            } else {
+                FIELD_LENGTH
+            };
+            Ok(WallsConstruction {
+                parallele_wall: Some(WallLine::GuessedLine(GuessedLine {
+                    line: PolarLine {
+                        distance: -space + first_wall.line().distance,
+                        ..first_wall.line()
+                    },
+                })),
+                ..detected_walls
+            })
+        }
+
+
+        _ => Ok(detected_walls),
+    }
 }
 
 #[cfg(test)]
@@ -510,7 +578,7 @@ mod tests {
 
     fn approx_equal_rad(a: Rad, b: Rad, epsilon: Rad) -> Result<(), String> {
         let mut diff = a - b;
-        if diff < Angle::ZERO {
+        if diff < Rad::ZERO {
             diff = -diff;
         }
         if diff >= epsilon {
@@ -864,7 +932,9 @@ mod tests {
 
     #[test]
     fn test_1() {
-        let data = load_log(TEST_CENTRE_GAUCHE_ORIENTE_GAUCHE);
+        // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
+        // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
+        let data = load_log(TEST_HAUT_DROITE_ORIENTE_DROITE);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
         println!("{:?}", ha.len());
@@ -885,7 +955,7 @@ mod tests {
         show_viewport(
             *data,
             ha.iter().map(|e| e.line).collect(),
-            walls_vec.into_iter().map(|e| e.line).collect(),
+            walls_vec.into_iter().map(|e| e.line()).collect(),
         )
         .unwrap();
 
