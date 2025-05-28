@@ -267,6 +267,7 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
             if importance < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                 continue;
             }
+            println!("line at {} {}", p_angle, p_distance);
             let distance = LidarDistance(p_distance as u16 * DISTANCE_RESOLUTION.0);
             let angle = LidarAngle(p_angle as u16 * ANGLE_RESOLUTION.0);
             
@@ -321,7 +322,7 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
                         };
                         println!("{:?}", found_line);
                     } else {
-                        println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
+                        //println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
                     }
                 }
             }
