@@ -211,8 +211,13 @@ const DISTANCE_RESOLUTION: LidarDistance = LidarDistance::cm(1);
 /// On compte 2x car il y a les distances positives et négatives
 const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2 / DISTANCE_RESOLUTION.0) as usize + 1;
 
+
+/// Attention compte pour 2, un en positif, un en négatif
+const MARGE_DISTANCE: i32 = 10;
+const MARGE_ANGLE: i32 = 10;
+
 /// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
-fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
+fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLine)> {
     // Création de la matrice de la transformation de Hough
     let mut accumulator = [[0u16; ANGLE_TAILLE]; DISTANCE_TAILLE];
     for point in points.iter() {
@@ -254,31 +259,106 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
         }
     }
 
-    // Tri des lignes selon le nombre de points
-    let mut trie = Vec::with_capacity(ANGLE_TAILLE * DISTANCE_TAILLE);
-    for (mut distance_case, angles) in accumulator.into_iter().enumerate() {
-        for (angle_case, weight) in angles.into_iter().enumerate() {
-            if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
+
+    // TODO diviser le nombre par deux !
+    for p_angle in 0..ANGLE_TAILLE {
+        for p_distance in 0..DISTANCE_TAILLE {
+            let importance = accumulator[p_distance][p_angle];
+            if importance < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                 continue;
             }
-            let mut angle_offset = Rad::ZERO;
-            if distance_case >= DISTANCE_TAILLE / 2 {
-                distance_case -= DISTANCE_TAILLE / 2;
+            let distance = LidarDistance(p_distance as u16 * DISTANCE_RESOLUTION.0);
+            let angle = LidarAngle(p_angle as u16 * ANGLE_RESOLUTION.0);
+            
+            // 0 <= angle <= 180 donc pas besoin de bound check
+            // penser à prendre la distance en négatif quand cal_angle > 180
+            // let wanted_angle_for_perpendicular = angle.to_deg().rad() + Rad::QUARTER_TURN;
+
+            // rappel angle est entre 0 et 180
+            let wanted_angle_for_parallel = angle;
+
+            // on teste uniquement "en dessous" car le robot (l'origine) doit toujours être à l'intérieur du terrain
+            let wanted_distance_for_parallel = distance.to_meters() - FIELD_WIDTH;
+            // TODO assert!(distance.to_meters().0 * wanted_distance_for_parallel.0 > 0.0)
+
+            let offset = if wanted_distance_for_parallel.0.is_sign_positive() {
+                DISTANCE_TAILLE / 2
             } else {
-                angle_offset = Rad::HALF_TURN;
+                0
+            };
+            let wanted_angle_case: usize = (wanted_angle_for_parallel / ANGLE_RESOLUTION).into();
+            let wanted_distance_case: usize = offset + (LidarDistance::meters(wanted_distance_for_parallel.0.abs() as u16) / DISTANCE_RESOLUTION) as usize;
+
+            for alea_distance in -MARGE_DISTANCE..=MARGE_DISTANCE {
+                if (wanted_distance_case as i32) + alea_distance < 0 || (wanted_distance_case as i32) + alea_distance >= DISTANCE_TAILLE as i32 {
+                    // out of bounds
+                    continue;
+                }
+                for alea_angle in -MARGE_ANGLE..=MARGE_ANGLE {
+                    if (wanted_angle_case as i32) + alea_angle < 0 || (wanted_angle_case as i32) + alea_angle >= ANGLE_TAILLE as i32 {
+                        // out of bounds
+                        continue;
+                    }
+
+                    let mut distance_case_applied = (wanted_distance_case as i32 + alea_distance) as usize;
+                    let angle_case_applied = (wanted_angle_case as i32 + alea_angle) as usize;
+                    let weight = accumulator[distance_case_applied][angle_case_applied];
+                    if weight > HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
+
+                        let mut angle_offset = Rad::ZERO;
+                        if distance_case_applied >= DISTANCE_TAILLE / 2 {
+                            distance_case_applied -= DISTANCE_TAILLE / 2;
+                        } else {
+                            angle_offset = Rad::HALF_TURN;
+                        }
+
+                        let found_line = HoughLine {
+                            line: PolarLine {
+                                distance: (DISTANCE_RESOLUTION * distance_case_applied).to_meters(),
+                                angle: angle_offset + (ANGLE_RESOLUTION * angle_case_applied).to_deg().rad(),
+                            },
+                            weight,
+                        };
+                        println!("{:?}", found_line);
+                    } else {
+                        println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
+                    }
+                }
             }
 
-            trie.push(HoughLine {
-                line: PolarLine {
-                    distance: (DISTANCE_RESOLUTION * distance_case).to_meters(),
-                    angle: angle_offset + (ANGLE_RESOLUTION * angle_case).to_deg().rad(),
-                },
-                weight,
-            })
+            // p_angle 
         }
     }
-    trie.sort_by_key(|e| Reverse(e.weight));
-    trie
+
+    panic!();
+    todo!()
+
+
+    // // Tri des lignes selon le nombre de points
+    // let mut trie = Vec::with_capacity(ANGLE_TAILLE * DISTANCE_TAILLE);
+    // for (mut distance_case, angles) in accumulator.into_iter().enumerate() {
+    //     for (angle_case, weight) in angles.into_iter().enumerate() {
+    //         if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
+    //             continue;
+    //         }
+    //         let mut angle_offset = Rad::ZERO;
+    //         if distance_case >= DISTANCE_TAILLE / 2 {
+    //             distance_case -= DISTANCE_TAILLE / 2;
+    //         } else {
+    //             angle_offset = Rad::HALF_TURN;
+    //         }
+
+    //         trie.push(HoughLine {
+    //             line: PolarLine {
+    //                 distance: (DISTANCE_RESOLUTION * distance_case).to_meters(),
+    //                 angle: angle_offset + (ANGLE_RESOLUTION * angle_case).to_deg().rad(),
+    //             },
+    //             weight,
+    //         })
+    //     }
+    // }
+    // trie.sort_by_key(|e| Reverse(e.weight));
+    // trie
 }
 
 // TODO should not be here
@@ -939,46 +1019,46 @@ mod tests {
         let data = load_log(TEST_HAUT_DROITE_ORIENTE_DROITE);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
-        println!("{:?}", ha.len());
-        let walls = find_walls(ha.iter().copied().collect()).unwrap();
+        // println!("{:?}", ha.len());
+        // let walls = find_walls(ha.iter().copied().collect()).unwrap();
 
-        let walls = try_to_complete_walls_from_uncomplete_data(walls).unwrap();
+        // let walls = try_to_complete_walls_from_uncomplete_data(walls).unwrap();
 
-        let mut walls_vec = vec![walls.first_wall];
+        // let mut walls_vec = vec![walls.first_wall];
 
-        if let Some(parallel_wall) = walls.parallele_wall {
-            walls_vec.push(parallel_wall);
-        }
-        if let Some(perpendicular_wall_1) = walls.perpendicular_wall_1 {
-            walls_vec.push(perpendicular_wall_1);
-        }
-        if let Some(perpendicular_wall_2) = walls.perpendicular_wall_2 {
-            walls_vec.push(perpendicular_wall_2);
-        }
+        // if let Some(parallel_wall) = walls.parallele_wall {
+        //     walls_vec.push(parallel_wall);
+        // }
+        // if let Some(perpendicular_wall_1) = walls.perpendicular_wall_1 {
+        //     walls_vec.push(perpendicular_wall_1);
+        // }
+        // if let Some(perpendicular_wall_2) = walls.perpendicular_wall_2 {
+        //     walls_vec.push(perpendicular_wall_2);
+        // }
 
-        show_viewport(
-            *data,
-            ha.iter()
-                .map(|e| ViewportLine {
-                    line: e.line,
-                    stroke: egui::Stroke::new(5.0, egui::Color32::DARK_RED),
-                }) // egui::Stroke::new(5.0, egui::Color32::BLUE),
-                .chain(walls_vec.into_iter().map(|e| match e {
-                    WallLine::GuessedLine(GuessedLine { line }) => ViewportLine {
-                        line: line,
-                        stroke: egui::Stroke::new(5.0, egui::Color32::DARK_BLUE),
-                    },
-                    WallLine::HoughLine(HoughLine { line, weight: _ }) => ViewportLine {
-                        line: line,
-                        stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
-                    },
-                }))
-                .collect(),
-        )
-        .unwrap();
+        // show_viewport(
+        //     *data,
+        //     ha.iter()
+        //         .map(|e| ViewportLine {
+        //             line: e.line,
+        //             stroke: egui::Stroke::new(5.0, egui::Color32::DARK_RED),
+        //         }) // egui::Stroke::new(5.0, egui::Color32::BLUE),
+        //         .chain(walls_vec.into_iter().map(|e| match e {
+        //             WallLine::GuessedLine(GuessedLine { line }) => ViewportLine {
+        //                 line: line,
+        //                 stroke: egui::Stroke::new(5.0, egui::Color32::DARK_BLUE),
+        //             },
+        //             WallLine::HoughLine(HoughLine { line, weight: _ }) => ViewportLine {
+        //                 line: line,
+        //                 stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+        //             },
+        //         }))
+        //         .collect(),
+        // )
+        // .unwrap();
 
-        println!("{:#?}", walls);
-        panic!("show");
+        // println!("{:#?}", walls);
+        // panic!("show");
         // show_viewport(
         //     *data,
         //     ha.into_iter().map(|e| e.line).collect(),
