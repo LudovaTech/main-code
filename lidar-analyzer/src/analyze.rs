@@ -1,8 +1,9 @@
+use core::f64;
 use std::cmp::Reverse;
 use std::error::Error;
 use std::fmt::Display;
 
-use crate::parse::{LidarAngle, LidarDistance, LidarPoint};
+use crate::parse::LidarPoint;
 use crate::units::*;
 
 // Constantes
@@ -134,8 +135,8 @@ pub struct PolarPoint {
 impl PolarPoint {
     fn from_lidar_point(lidar_point: &LidarPoint) -> Self {
         Self {
-            distance: lidar_point.distance.to_meters(),
-            angle: lidar_point.angle.to_deg().rad(),
+            distance: lidar_point.distance,
+            angle: lidar_point.angle,
         }
     }
 }
@@ -195,21 +196,21 @@ fn check_around(
 const HOUGH_TRANSFORM_MIN_POINT_PER_LINE: u16 = 50;
 
 /// distance maximale en dessous de laquelle les points détectés du lidar sont conservés
-const LIDAR_DISTANCE_MAX: LidarDistance = LidarDistance::meters(3);
+const LIDAR_DISTANCE_MAX: Meters = Meters(3.0);
 
 /// angle auquel on crée une nouvelle ligne dans la transformation de Hough
-const ANGLE_RESOLUTION: LidarAngle = LidarAngle::deg(1);
+const ANGLE_RESOLUTION: f64 = 1.0 / 180.0 * f64::consts::PI;
 
 /// nombre d'angles différents dans la matrice de la transformation de Hough
 /// On ne va que de 0 à 180° car les distances peuvent être négatives
-const ANGLE_TAILLE: usize = (LidarAngle::deg(180).0 / ANGLE_RESOLUTION.0) as usize + 1;
+const ANGLE_TAILLE: usize = (f64::consts::PI / ANGLE_RESOLUTION) as usize + 1;
 
 /// distance à laquelle on crée une nouvelle ligne dans la transformation de Hough
-const DISTANCE_RESOLUTION: LidarDistance = LidarDistance::cm(1);
+const DISTANCE_RESOLUTION: Meters = Meters::cm(1.0);
 
 /// nombre de distances différentes dans la matrice de la transformation de Hough
 /// On compte 2x car il y a les distances positives et négatives
-const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2 / DISTANCE_RESOLUTION.0) as usize + 1;
+const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2.0 / DISTANCE_RESOLUTION.0) as usize + 1;
 
 /// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
 fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
@@ -223,16 +224,12 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
         // Formule magique. `lpd * cos(lpa - a)`
         // Se prouve avec : lpd = lidarPoint.distance, lpa = lidarPoint.angle
         // `x = lpd * cos(lpa)`, `y = lpd * sin(lpa)`, `r_a = x * cos(a) + y * sin(a)`, et les formules d'addition du cosinus
-        for calculated_angle in (0..=(LidarAngle::deg(180).0)).step_by(ANGLE_RESOLUTION.0.into()) {
-            let calculated_angle = LidarAngle(calculated_angle);
+        let mut calculated_angle = Rad::ZERO;
+        while calculated_angle <= Rad::HALF_TURN {
             // println!("{:?}", calculated_angle);
 
             // cos(x) = cos(abs(x))
-            let distance_factor = point
-                .angle
-                .distance_between_angle(calculated_angle)
-                .to_deg()
-                .cos();
+            let distance_factor = (point.angle - calculated_angle).mag().cos();
             let offset = if distance_factor.is_sign_positive() {
                 DISTANCE_TAILLE / 2
             } else {
@@ -241,7 +238,7 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
             let calculated_distance = point.distance * distance_factor.abs();
             let distance_case: usize =
                 offset + (calculated_distance / DISTANCE_RESOLUTION) as usize;
-            let angle_case: usize = (calculated_angle / ANGLE_RESOLUTION).into();
+            let angle_case: usize = (calculated_angle / Rad::new(ANGLE_RESOLUTION)) as usize;
             // println!("{} {} {}", distance_case, offset, distance_factor);
             accumulator[distance_case][angle_case] =
                 accumulator[distance_case][angle_case].saturating_add(1);
@@ -251,6 +248,8 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
             // check_around(&mut accumulator, distance_case, angle_case, 3, 40);
             // check_around(&mut accumulator, distance_case, angle_case, 4, 25);
             // check_around(&mut accumulator, distance_case, angle_case, 5, 10);
+
+            calculated_angle += Rad::new(ANGLE_RESOLUTION);
         }
     }
 
@@ -270,8 +269,8 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
 
             trie.push(HoughLine {
                 line: PolarLine {
-                    distance: (DISTANCE_RESOLUTION * distance_case).to_meters(),
-                    angle: angle_offset + (ANGLE_RESOLUTION * angle_case).to_deg().rad(),
+                    distance: DISTANCE_RESOLUTION * distance_case as f64,
+                    angle: angle_offset + (Rad::new(ANGLE_RESOLUTION) * angle_case as f64),
                 },
                 weight,
             })
@@ -555,10 +554,7 @@ mod tests {
 
     use super::*;
     use crate::analyze_tests_data::lidar_test_data::*;
-    use crate::{
-        basic_viewport::show_viewport,
-        parse::{LidarAngle, LidarDistance},
-    };
+    use crate::basic_viewport::show_viewport;
     use std::time::{Duration, Instant};
 
     fn load_log(from: &str) -> Box<Vec<LidarPoint>> {
@@ -569,9 +565,9 @@ mod tests {
             let distance = iter_num.next().unwrap().parse::<u16>().unwrap();
             assert!(iter_num.next().is_none());
             vector.push(LidarPoint {
-                distance: LidarDistance(distance),
+                distance: Meters::mm(f64::from(distance)),
                 intensity: Intensity::NULL,
-                angle: LidarAngle(angle),
+                angle: Deg::new(f64::from(angle) / 100.0).rad(),
             });
         }
         vector

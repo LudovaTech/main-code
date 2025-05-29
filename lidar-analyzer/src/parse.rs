@@ -115,115 +115,6 @@ impl Lidar {
     }
 }
 
-
-/// Représente une distance en mm sous forme de u16
-/// La valeur n'est pas automatiquement convertie car elle est pratique pour la transformation de Hough
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct LidarDistance(pub u16);
-
-impl LidarDistance {
-    /// Transformation des unités :
-    /// distance mm -> meters
-    #[inline]
-    pub fn to_meters(&self) -> Meters {
-        Meters::mm(f64::from(self.0))
-    }
-
-    #[inline]
-    pub const fn cm(distance: u16) -> Self {
-        Self(distance * 10)
-    }
-
-    #[inline]
-    pub const fn meters(distance: u16) -> Self {
-        Self(distance * 1000)
-    }
-}
-
-impl Div for LidarDistance {
-    type Output = u16;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        self.0 / rhs.0
-    }
-}
-
-impl Mul<f64> for LidarDistance {
-    type Output = LidarDistance;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        assert!(rhs.is_sign_positive());
-        LidarDistance((f64::from(self.0) * rhs).round() as u16)
-    }
-}
-
-impl Mul<usize> for LidarDistance {
-    type Output = LidarDistance;
-
-    fn mul(self, rhs: usize) -> Self::Output {
-        LidarDistance(self.0 * rhs as u16)
-    }
-}
-
-/// Représente un angle *en centièmes de degrés* sous forme de u16
-/// La valeur n'est pas automatiquement convertie car elle est pratique pour la transformation de Hough
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct LidarAngle(pub u16);
-
-impl LidarAngle {
-    /// Transformation des unités :
-    /// angle : 0.01 degrés -> degrés Deg
-    #[inline]
-    pub fn to_deg(&self) -> Deg {
-        Deg::new(f64::from(self.0) / 100.0)
-    }
-
-    #[inline]
-    pub const fn deg(angle: u16) -> Self {
-        Self(angle * 100)
-    }
-}
-
-impl AddAssign for LidarAngle {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0
-    }
-}
-
-impl LidarAngle {
-    pub fn distance_between_angle(self, other: Self) -> Self {
-        if self >= other {
-            Self(self.0 - other.0)
-        } else {
-            Self(other.0 - self.0)
-        }
-    }
-}
-
-// impl Sub for LidarAngle {
-//     type Output = LidarAngle;
-
-//     fn sub(self, rhs: Self) -> Self::Output {
-//         LidarAngle(self.0 - rhs.0)
-//     }
-// }
-
-impl Div for LidarAngle {
-    type Output = u16;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        self.0 / rhs.0
-    }
-}
-
-impl Mul<usize> for LidarAngle {
-    type Output = LidarAngle;
-
-    fn mul(self, rhs: usize) -> Self::Output {
-        LidarAngle(self.0 * rhs as u16)
-    }
-}
-
 /// Représente un point donné par le lidar.
 /// 
 /// Unités :
@@ -232,9 +123,9 @@ impl Mul<usize> for LidarAngle {
 ///  - angle en radians
 #[derive(Debug, Clone)]
 pub struct LidarPoint {
-    pub distance: LidarDistance,
+    pub distance: Meters,
     pub intensity: Intensity,
-    pub angle: LidarAngle,
+    pub angle: Rad,
 }
 
 impl LidarPoint {
@@ -253,9 +144,9 @@ impl LidarPoint {
             // Transformation des unités :
             // intensité 0-255 u8 -> 0-1 f64
             points.push(LidarPoint {
-                distance: LidarDistance(Self::get_2_bytes_lsb_msb(&data, i)),
+                distance: Meters::mm(f64::from(Self::get_2_bytes_lsb_msb(&data, i))),
                 intensity: Intensity::from_u8(data[i + 2]),
-                angle: LidarAngle(0),
+                angle: Rad::ZERO,
             });
         }
         let end_angle = Self::get_2_bytes_lsb_msb(&data, 42);
@@ -273,7 +164,7 @@ impl LidarPoint {
 
         for (n_point, point) in points.iter_mut().enumerate() {
             let angle = (start_angle + (angle_step * (n_point as u16))) % 36_000;
-            point.angle = LidarAngle(angle);
+            point.angle = Deg::new(f64::from(angle) / 100.0).rad();
         }
         Ok(points)
     }
