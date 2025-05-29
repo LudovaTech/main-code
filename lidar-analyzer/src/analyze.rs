@@ -3,7 +3,7 @@ use std::cmp::Reverse;
 use std::error::Error;
 use std::fmt::Display;
 
-use crate::parse::LidarPoint;
+use crate::parse::{PolarPoint, LidarPoint};
 use crate::units::*;
 
 // Constantes
@@ -127,22 +127,6 @@ pub struct HoughLine {
 
 /// ax + by + c = 0
 #[derive(Debug, Clone)]
-pub struct PolarPoint {
-    pub distance: Meters,
-    pub angle: Rad,
-}
-
-impl PolarPoint {
-    fn from_lidar_point(lidar_point: &LidarPoint) -> Self {
-        Self {
-            distance: lidar_point.distance,
-            angle: lidar_point.angle,
-        }
-    }
-}
-
-/// ax + by + c = 0
-#[derive(Debug, Clone)]
 pub struct CarthesianLine {
     pub a: f64,
     pub b: f64,
@@ -217,7 +201,7 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
     // Création de la matrice de la transformation de Hough
     let mut accumulator = [[0u16; ANGLE_TAILLE]; DISTANCE_TAILLE];
     for point in points.iter() {
-        if point.distance > LIDAR_DISTANCE_MAX {
+        if point.point.distance > LIDAR_DISTANCE_MAX {
             continue;
         }
 
@@ -229,13 +213,13 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
             // println!("{:?}", calculated_angle);
 
             // cos(x) = cos(abs(x))
-            let distance_factor = (point.angle - calculated_angle).mag().cos();
+            let distance_factor = (point.point.angle - calculated_angle).mag().cos();
             let offset = if distance_factor.is_sign_positive() {
                 DISTANCE_TAILLE / 2
             } else {
                 0
             };
-            let calculated_distance = point.distance * distance_factor.abs();
+            let calculated_distance = point.point.distance * distance_factor.abs();
             let distance_case: usize =
                 offset + (calculated_distance / DISTANCE_RESOLUTION) as usize;
             let angle_case: usize = (calculated_angle / Rad::new(ANGLE_RESOLUTION)) as usize;
@@ -553,8 +537,8 @@ mod tests {
     use eframe::egui;
 
     use super::*;
-    use crate::analyze_tests_data::lidar_test_data::*;
     use crate::basic_viewport::show_viewport;
+    use crate::{analyze_tests_data::lidar_test_data::*, parse::PolarPoint};
     use std::time::{Duration, Instant};
 
     fn load_log(from: &str) -> Box<Vec<LidarPoint>> {
@@ -565,9 +549,11 @@ mod tests {
             let distance = iter_num.next().unwrap().parse::<u16>().unwrap();
             assert!(iter_num.next().is_none());
             vector.push(LidarPoint {
-                distance: Meters::mm(f64::from(distance)),
+                point: PolarPoint {
+                    distance: Meters::mm(f64::from(distance)),
+                    angle: Deg::new(f64::from(angle) / 100.0).rad(),
+                },
                 intensity: Intensity::NULL,
-                angle: Deg::new(f64::from(angle) / 100.0).rad(),
             });
         }
         vector
