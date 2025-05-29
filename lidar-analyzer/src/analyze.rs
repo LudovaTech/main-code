@@ -1184,7 +1184,7 @@ mod tests {
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
 
         // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
-        let data = load_log(TEST_BAS_DROITE_ORIENTE_GAUCHE);
+        let data = load_log(TEST_HAUT_DROITE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
         let accumulator = build_hough_accumulator(&data);
         let mut candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
