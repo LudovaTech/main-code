@@ -2,7 +2,7 @@
 //! 
 //! Ce fichier est destiné à être `use units::*` donc peu de choses sont publiques
 
-use std::ops::{Add, Div, Neg};
+use std::ops::{Add, Div, Mul, Neg};
 
 pub type Rad = radians::Rad64;
 pub type Deg = radians::Deg64;
@@ -33,10 +33,10 @@ impl Meters {
 }
 
 impl Div for Meters {
-    type Output = Self;
+    type Output = f64;
 
     fn div(self, rhs: Self) -> Self::Output {
-        Self(self.0 / rhs.0)
+        self.0 / rhs.0
     }
 }
 
@@ -53,6 +53,14 @@ impl Add for Meters {
 
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
+    }
+}
+
+impl Mul<f64> for Meters {
+    type Output = Meters;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self(self.0 * rhs)
     }
 }
 
