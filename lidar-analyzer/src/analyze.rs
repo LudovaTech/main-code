@@ -97,6 +97,15 @@ impl PolarLine {
         )
     }
 
+    /// A n'utiliser que si vous êtes sûr de ce que vous faites,
+    /// *Vous transformez une droite en point !*
+    fn _to_polar_point(&self) -> PolarPoint {
+        PolarPoint {
+            distance: self.distance,
+            angle: self.angle,
+        }
+    }
+
     /// Calcule le point d'intersection de deux droites
     /// Les droites ne doivent pas être parallèles pour que le résultat aie du sens
     /// Redémontrer avec r = r0 / cos(theta - theta0)
@@ -198,6 +207,11 @@ const DISTANCE_RESOLUTION: Meters = Meters::cm(1.0);
 /// On compte 2x car il y a les distances positives et négatives
 const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2.0 / DISTANCE_RESOLUTION.0) as usize + 1;
 
+#[inline]
+fn polar_point_to_case_angle_only(angle: Rad) -> usize {
+    (angle / Rad::new(ANGLE_RESOLUTION)) as usize
+}
+
 /// Fonctionne avec les deux convention, distance négative et angle > 180
 fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
     assert!(!(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN), "this should never happen, negative distance or angle over 180 are two different way to express the same thing and should not be used together : {:#?}", point);
@@ -207,7 +221,7 @@ fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
         0
     };
     let distance_case: usize = offset + (point.distance.abs() / DISTANCE_RESOLUTION) as usize;
-    let angle_case: usize = (point.angle / Rad::new(ANGLE_RESOLUTION)) as usize;
+    let angle_case: usize = polar_point_to_case_angle_only(point.angle);
     (distance_case, angle_case)
 }
 
@@ -228,11 +242,68 @@ fn case_to_polar_line(distance_case: usize, angle_case: usize) -> PolarLine {
 }
 
 /// Attention compte pour 2, un en positif, un en négatif
-const MARGE_DISTANCE: i32 = 3;
-const MARGE_ANGLE: i32 = 3;
+const MARGE_DISTANCE: i32 = 10;
+const MARGE_ANGLE: i32 = 10;
+
+#[inline]
+fn look_around_for_lines_angle_only(
+    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    distance_case_applied: usize,
+    wanted_angle_case: usize,
+) -> Vec<HoughLine> {
+    let mut found_lines = Vec::new();
+    for alea_angle in -MARGE_ANGLE..=MARGE_ANGLE {
+        if (wanted_angle_case as i32) + alea_angle < 0
+            || (wanted_angle_case as i32) + alea_angle >= ANGLE_TAILLE as i32
+        {
+            // out of bounds
+            continue;
+        }
+
+        let angle_case_applied = (wanted_angle_case as i32 + alea_angle) as usize;
+        let found_weight = accumulator[distance_case_applied][angle_case_applied];
+        if found_weight > HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
+            let found_line = HoughLine {
+                line: case_to_polar_line(distance_case_applied, angle_case_applied),
+                weight: found_weight,
+            };
+            println!("found : {:?}", found_line);
+            found_lines.push(found_line);
+        } else {
+            //println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
+        }
+    }
+    found_lines
+}
+
+#[inline]
+fn look_around_for_lines(
+    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    wanted_distance_case: usize,
+    wanted_angle_case: usize,
+) -> Vec<HoughLine> {
+    let mut found_lines = Vec::new();
+    for alea_distance in -MARGE_DISTANCE..=MARGE_DISTANCE {
+        if (wanted_distance_case as i32) + alea_distance < 0
+            || (wanted_distance_case as i32) + alea_distance >= DISTANCE_TAILLE as i32
+        {
+            // out of bounds
+            continue;
+        }
+        let distance_case_applied = (wanted_distance_case as i32 + alea_distance) as usize;
+        found_lines.append(&mut look_around_for_lines_angle_only(
+            accumulator,
+            distance_case_applied,
+            wanted_angle_case,
+        ));
+    }
+    found_lines
+}
 
 /// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
-fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLine)> {
+fn build_hough_accumulator(
+    points: &Vec<LidarPoint>,
+) -> Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]> {
     // Création de la matrice de la transformation de Hough
     let mut accumulator = [[0u16; ANGLE_TAILLE]; DISTANCE_TAILLE];
     for point in points.iter() {
@@ -266,6 +337,28 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
         }
     }
 
+    Box::new(accumulator)
+}
+
+fn conv_convention_big_angle_to_negative_distance(line: PolarLine) -> PolarLine {
+    PolarLine {
+        distance: if line.angle > Rad::HALF_TURN {
+            -line.distance
+        } else {
+            line.distance
+        },
+        angle: if line.angle > Rad::HALF_TURN {
+            line.angle - Rad::HALF_TURN
+        } else {
+            line.angle
+        },
+    }
+}
+
+fn search_all_parallel_lines(
+    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    distance_between_lines: Meters,
+) -> Vec<(HoughLine, HoughLine)> {
     let mut found_lines = Vec::new();
 
     // TODO diviser le nombre par deux ? (for p_distance in (DISTANCE_TAILLE/2)..DISTANCE_TAILLE)
@@ -283,25 +376,13 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
             // let wanted_angle_for_perpendicular = angle.to_deg().rad() + Rad::QUARTER_TURN;
 
             // convention distance négative angle < 180
-            let sign_line = PolarLine {
-                distance: if line.angle > Rad::HALF_TURN {
-                    -line.distance
-                } else {
-                    line.distance
-                },
-                angle: if line.angle > Rad::HALF_TURN {
-                    line.angle - Rad::HALF_TURN
-                } else {
-                    line.angle
-                },
-            };
+            let sign_line = conv_convention_big_angle_to_negative_distance(line);
 
             // rappel angle est entre 0 et 180
             let wanted_angle_for_parallel = sign_line.angle;
-            println!("angle : {}", wanted_angle_for_parallel);
 
             // on teste uniquement "en dessous" car le robot (l'origine) doit toujours être à l'intérieur du terrain
-            let wanted_distance_for_parallel = sign_line.distance - FIELD_WIDTH;
+            let wanted_distance_for_parallel = sign_line.distance - distance_between_lines;
             // TODO assert!(distance.to_meters().0 * wanted_distance_for_parallel.0 > 0.0)
 
             let (wanted_distance_case, wanted_angle_case) = polar_point_to_case(PolarPoint {
@@ -309,69 +390,42 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
                 angle: wanted_angle_for_parallel,
             });
 
-            for alea_distance in -MARGE_DISTANCE..=MARGE_DISTANCE {
-                if (wanted_distance_case as i32) + alea_distance < 0
-                    || (wanted_distance_case as i32) + alea_distance >= DISTANCE_TAILLE as i32
-                {
-                    // out of bounds
-                    continue;
-                }
-                for alea_angle in -MARGE_ANGLE..=MARGE_ANGLE {
-                    if (wanted_angle_case as i32) + alea_angle < 0
-                        || (wanted_angle_case as i32) + alea_angle >= ANGLE_TAILLE as i32
-                    {
-                        // out of bounds
-                        continue;
-                    }
-
-                    let distance_case_applied =
-                        (wanted_distance_case as i32 + alea_distance) as usize;
-                    let angle_case_applied = (wanted_angle_case as i32 + alea_angle) as usize;
-                    let found_weight = accumulator[distance_case_applied][angle_case_applied];
-                    if found_weight > HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
-                        let found_line = HoughLine {
-                            line: case_to_polar_line(distance_case_applied, angle_case_applied),
-                            weight: found_weight,
-                        };
-                        println!("found : {:?}", found_line);
-                        found_lines.push((HoughLine { line, weight }, found_line));
-                    } else {
-                        //println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
-                    }
-                }
-            }
-
-            // p_angle
+            found_lines.extend(
+                look_around_for_lines(&accumulator, wanted_distance_case, wanted_angle_case)
+                    .iter()
+                    .map(|e| (HoughLine { line, weight }, *e)),
+            );
         }
+    }
+    found_lines
+}
+
+fn search_perpendicular_lines_of(
+    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    line: PolarLine,
+) -> Vec<(PolarLine, HoughLine)> {
+    // let (distance_case, angle_case) = polar_point_to_case(line._to_polar_point());
+    let mut found_lines = Vec::new();
+    let line = conv_convention_big_angle_to_negative_distance(line);
+    let wanted_angle = line.angle + Rad::QUARTER_TURN; // ICI si wangle > 90
+    let PolarLine {
+        angle: wanted_angle_corrected,
+        distance: _,
+    } = conv_convention_big_angle_to_negative_distance(PolarLine {
+        distance: line.distance,
+        angle: wanted_angle,
+    });
+    let wanted_angle_case = polar_point_to_case_angle_only(wanted_angle_corrected);
+
+    for p_distance in 0..DISTANCE_TAILLE {
+        found_lines.extend(
+            look_around_for_lines_angle_only(accumulator, p_distance, wanted_angle_case)
+                .iter()
+                .map(|e| (line, *e)),
+        );
     }
 
     found_lines
-
-    // // Tri des lignes selon le nombre de points
-    // let mut trie = Vec::with_capacity(ANGLE_TAILLE * DISTANCE_TAILLE);
-    // for (mut distance_case, angles) in accumulator.into_iter().enumerate() {
-    //     for (angle_case, weight) in angles.into_iter().enumerate() {
-    //         if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
-    //             continue;
-    //         }
-    //         let mut angle_offset = Rad::ZERO;
-    //         if distance_case >= DISTANCE_TAILLE / 2 {
-    //             distance_case -= DISTANCE_TAILLE / 2;
-    //         } else {
-    //             angle_offset = Rad::HALF_TURN;
-    //         }
-
-    //         trie.push(HoughLine {
-    //             line: PolarLine {
-    //                 distance: (DISTANCE_RESOLUTION * distance_case).to_meters(),
-    //                 angle: angle_offset + (ANGLE_RESOLUTION * angle_case).to_deg().rad(),
-    //             },
-    //             weight,
-    //         })
-    //     }
-    // }
-    // trie.sort_by_key(|e| Reverse(e.weight));
-    // trie
 }
 
 // TODO should not be here
@@ -1042,16 +1096,39 @@ mod tests {
         use crate::basic_viewport::ViewportLine;
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
-        let data = load_log(TEST_HAUT_DROITE_ORIENTE_DROITE);
+        let data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
+        let pl = search_all_parallel_lines(&ha, FIELD_LENGTH);
         let mut vl = Vec::with_capacity(50);
-        println!("{:#?}", ha);
-        println!("{}", ha.len());
-        for ((first, second), color) in ha.iter().zip(COLORS.iter().cycle()) {
-            vl.push(ViewportLine { line: first.line, stroke: egui::Stroke::new(5.0, *color) });
-            vl.push(ViewportLine { line: second.line, stroke: egui::Stroke::new(5.0, *color) });
+        println!("{:#?}", pl);
+        println!("{}", pl.len());
+        // for ((first, second), color) in pl.iter().zip(COLORS.iter().cycle()) {
+        //     vl.push(ViewportLine {
+        //         line: first.line,
+        //         stroke: egui::Stroke::new(5.0, *color),
+        //     });
+        //     vl.push(ViewportLine {
+        //         line: second.line,
+        //         stroke: egui::Stroke::new(5.0, *color),
+        //     });
+        // }
+
+        let perpendicular_lines = search_perpendicular_lines_of(&ha, pl.first().unwrap().0.line);
+
+        println!("{}", perpendicular_lines.len());
+
+        for ((first, second), color) in perpendicular_lines.iter().zip(COLORS.iter().cycle()) {
+            vl.push(ViewportLine {
+                line: *first,
+                stroke: egui::Stroke::new(5.0, *color),
+            });
+            vl.push(ViewportLine {
+                line: second.line,
+                stroke: egui::Stroke::new(5.0, *color),
+            });
         }
+
         show_viewport(*data, vl).unwrap();
         panic!()
         // println!("{:?}", ha.len());
