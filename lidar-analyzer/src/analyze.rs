@@ -418,9 +418,11 @@ fn search_perpendicular_lines_of(
     let wanted_angle_case = polar_point_to_case_angle_only(wanted_angle_corrected);
 
     for p_distance in 0..DISTANCE_TAILLE {
-        found_lines.append(
-            &mut look_around_for_lines_angle_only(accumulator, p_distance, wanted_angle_case),
-        );
+        found_lines.append(&mut look_around_for_lines_angle_only(
+            accumulator,
+            p_distance,
+            wanted_angle_case,
+        ));
     }
 
     found_lines
@@ -691,6 +693,92 @@ fn try_to_complete_walls_from_uncomplete_data(
         }
 
         _ => Ok(detected_walls),
+    }
+}
+
+fn locate_field_with_4_walls(
+    candidate_line_width: &Vec<(HoughLine, HoughLine)>,
+    candidate_line_length: &Vec<(HoughLine, HoughLine)>,
+) -> Option<[HoughLine; 4]> {
+    let mut score = 0;
+    let mut field: Option<[HoughLine; 4]> = None;
+    for parallel_width in candidate_line_width.iter() {
+        for parallel_length in candidate_line_length.iter() {
+            if parallel_width
+                .0
+                .line
+                .is_approx_perpendicular_with(&parallel_length.0.line)
+            {
+                // la paire fonctionne
+                let this_score = parallel_width.0.weight
+                    + parallel_width.1.weight
+                    + parallel_length.0.weight
+                    + parallel_length.1.weight;
+                if this_score > score {
+                    score = this_score;
+                    field = Some([
+                        parallel_width.0,
+                        parallel_width.1,
+                        parallel_length.0,
+                        parallel_length.1,
+                    ])
+                }
+            }
+        }
+    }
+    field
+}
+
+enum _LineSize {
+    Width,
+    Length,
+}
+
+fn fallback_on_3_walls(
+    accumulator: &Box<[[u16; 181]; 601]>,
+    candidate_line_width: Vec<(HoughLine, HoughLine)>,
+    candidate_line_length: Vec<(HoughLine, HoughLine)>,
+) -> Option<[HoughLine; 4]> {
+    // search if a perpendicular line exists for all the parallel lines detected
+    let mut all_detected_lines: Vec<(_LineSize, (HoughLine, HoughLine))> = candidate_line_width
+        .into_iter()
+        .map(|e| (_LineSize::Width, e))
+        .chain(
+            candidate_line_length
+                .into_iter()
+                .map(|e| (_LineSize::Length, e)),
+        )
+        .collect();
+    all_detected_lines.sort_by_key(|(_, (l1, l2))| l1.weight + l2.weight);
+
+    let perpendicular =
+        search_perpendicular_lines_of(&accumulator, all_detected_lines.first().unwrap().1 .0.line);
+    if !perpendicular.is_empty() {
+        Some([
+            all_detected_lines.first().unwrap().1 .0,
+            all_detected_lines.first().unwrap().1 .1,
+            *perpendicular.first().unwrap(),
+            HoughLine {
+                line: guess_third_wall(
+                    perpendicular.first().unwrap().line,
+                    match all_detected_lines.first().unwrap().0 {
+                        _LineSize::Width => FIELD_WIDTH,
+                        _LineSize::Length => FIELD_LENGTH,
+                    },
+                ),
+                weight: 0,
+            },
+        ])
+    } else {
+        None
+    }
+}
+
+fn guess_third_wall(parallel_known_wall: PolarLine, distance_between_lines: Meters) -> PolarLine {
+    let patched_line = conv_convention_big_angle_to_negative_distance(parallel_known_wall);
+    PolarLine {
+        distance: patched_line.distance - distance_between_lines,
+        angle: patched_line.angle,
     }
 }
 
@@ -1094,13 +1182,30 @@ mod tests {
         use crate::basic_viewport::ViewportLine;
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
-        let data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
+
+        // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
+        let data = load_log(TEST_BAS_DROITE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
         let accumulator = build_hough_accumulator(&data);
-        let all_parallel_lines = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
+        let mut candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
+        let mut candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
+
+        let field = locate_field_with_4_walls(&candidate_line_width, &candidate_line_length)
+            .or_else(|| {
+                fallback_on_3_walls(&accumulator, candidate_line_width, candidate_line_length)
+            });
+
         let mut vl = Vec::with_capacity(50);
-        println!("{:#?}", all_parallel_lines);
-        println!("{}", all_parallel_lines.len());
+
+        if let Some(filed_found) = field {
+            for line in filed_found {
+                vl.push(ViewportLine {
+                    line: line.line,
+                    stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+                });
+            }
+        }
+
         // for ((first, second), color) in pl.iter().zip(COLORS.iter().cycle()) {
         //     vl.push(ViewportLine {
         //         line: first.line,
@@ -1112,16 +1217,19 @@ mod tests {
         //     });
         // }
 
-        let perpendicular_lines = search_perpendicular_lines_of(&accumulator, all_parallel_lines.first().unwrap().0.line);
+        // let perpendicular_lines = search_perpendicular_lines_of(
+        //     &accumulator,
+        //     candidate_line_width.first().unwrap().0.line,
+        // );
 
-        println!("{}", perpendicular_lines.len());
+        // println!("{}", perpendicular_lines.len());
 
-        for (perpendicular_line, color) in perpendicular_lines.iter().zip(COLORS.iter().cycle()) {
-            vl.push(ViewportLine {
-                line: perpendicular_line.line,
-                stroke: egui::Stroke::new(5.0, *color),
-            });
-        }
+        // for (perpendicular_line, color) in perpendicular_lines.iter().zip(COLORS.iter().cycle()) {
+        //     vl.push(ViewportLine {
+        //         line: perpendicular_line.line,
+        //         stroke: egui::Stroke::new(5.0, *color),
+        //     });
+        // }
 
         show_viewport(*data, vl).unwrap();
         panic!()
