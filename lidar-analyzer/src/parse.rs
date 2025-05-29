@@ -120,6 +120,15 @@ pub struct PolarPoint {
     pub angle: Rad,
 }
 
+impl PolarPoint {
+    pub fn to_carthesian_point(&self) -> (f64, f64) {
+        (
+            self.distance.0 * self.angle.cos(),
+            self.distance.0 * self.angle.sin(),
+        )
+    }
+}
+
 /// Représente un point donné par le lidar.
 ///
 /// Unités :
