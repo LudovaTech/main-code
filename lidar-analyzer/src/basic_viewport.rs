@@ -95,6 +95,8 @@ impl eframe::App for PolarPointsApp {
             let painter = ui.painter();
             let center = ui.available_rect_before_wrap().center() + self.offset;
 
+            painter.circle(center, 2.0, egui::Color32::GRAY, egui::Stroke::NONE);
+
             for point in &self.points {
                 let x = center.x + (point.point.angle.cos() * point.point.distance.0) as f32 * self.zoom;
                 let y = center.y + (point.point.angle.sin() * point.point.distance.0) as f32 * self.zoom;
@@ -105,10 +107,13 @@ impl eframe::App for PolarPointsApp {
                     egui::Stroke::NONE,
                 );
             }
+            let center_pos_w = (0.6494805440218329, 1.282994287434672);
+            painter.circle(egui::pos2(center.x + self.zoom * center_pos_w.0, center.y + self.zoom * center_pos_w.1), 2.0, egui::Color32::WHITE, egui::Stroke::NONE);
 
-            for vline in self.vlines.iter() {
-                self.draw_line(ui, ctx, center, vline);
-            }
+            // for vline in self.vlines.iter() {
+            //     self.draw_line(ui, ctx, center, vline);
+            // }
+            
         });
     }
 }
