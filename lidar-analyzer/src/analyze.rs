@@ -266,7 +266,9 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
         }
     }
 
-    // TODO diviser le nombre par deux !
+    let mut found_lines = Vec::new();
+
+    // TODO diviser le nombre par deux ? (for p_distance in (DISTANCE_TAILLE/2)..DISTANCE_TAILLE)
     for p_angle in 0..ANGLE_TAILLE {
         for p_distance in 0..DISTANCE_TAILLE {
             let weight = accumulator[p_distance][p_angle];
@@ -282,8 +284,16 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
 
             // convention distance négative angle < 180
             let sign_line = PolarLine {
-                distance: if line.angle > Rad::HALF_TURN { -line.distance } else { line.distance },
-                angle: if line.angle > Rad::HALF_TURN { line.angle - Rad::HALF_TURN } else { line.angle }
+                distance: if line.angle > Rad::HALF_TURN {
+                    -line.distance
+                } else {
+                    line.distance
+                },
+                angle: if line.angle > Rad::HALF_TURN {
+                    line.angle - Rad::HALF_TURN
+                } else {
+                    line.angle
+                },
             };
 
             // rappel angle est entre 0 et 180
@@ -317,13 +327,14 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
                     let distance_case_applied =
                         (wanted_distance_case as i32 + alea_distance) as usize;
                     let angle_case_applied = (wanted_angle_case as i32 + alea_angle) as usize;
-                    let weight = accumulator[distance_case_applied][angle_case_applied];
-                    if weight > HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
+                    let found_weight = accumulator[distance_case_applied][angle_case_applied];
+                    if found_weight > HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                         let found_line = HoughLine {
                             line: case_to_polar_line(distance_case_applied, angle_case_applied),
-                            weight,
+                            weight: found_weight,
                         };
                         println!("found : {:?}", found_line);
+                        found_lines.push((HoughLine { line, weight }, found_line));
                     } else {
                         //println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
                     }
@@ -334,8 +345,7 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
         }
     }
 
-    panic!();
-    todo!()
+    found_lines
 
     // // Tri des lignes selon le nombre de points
     // let mut trie = Vec::with_capacity(ANGLE_TAILLE * DISTANCE_TAILLE);
@@ -1013,6 +1023,20 @@ mod tests {
         )
     }
 
+    const COLORS: [egui::Color32; 11] = [
+        egui::Color32::BLUE,
+        egui::Color32::BROWN,
+        egui::Color32::CYAN,
+        egui::Color32::DARK_BLUE,
+        egui::Color32::DARK_GRAY,
+        egui::Color32::DARK_GREEN,
+        egui::Color32::DARK_RED,
+        egui::Color32::GOLD,
+        egui::Color32::GRAY,
+        egui::Color32::GREEN,
+        egui::Color32::KHAKI,
+    ];
+
     #[test]
     fn test_1() {
         use crate::basic_viewport::ViewportLine;
@@ -1021,6 +1045,15 @@ mod tests {
         let data = load_log(TEST_HAUT_DROITE_ORIENTE_DROITE);
         // println!("{:#?}", data);
         let ha = build_hough_accumulator(&data);
+        let mut vl = Vec::with_capacity(50);
+        println!("{:#?}", ha);
+        println!("{}", ha.len());
+        for ((first, second), color) in ha.iter().zip(COLORS.iter().cycle()) {
+            vl.push(ViewportLine { line: first.line, stroke: egui::Stroke::new(5.0, *color) });
+            vl.push(ViewportLine { line: second.line, stroke: egui::Stroke::new(5.0, *color) });
+        }
+        show_viewport(*data, vl).unwrap();
+        panic!()
         // println!("{:?}", ha.len());
         // let walls = find_walls(ha.iter().copied().collect()).unwrap();
 
