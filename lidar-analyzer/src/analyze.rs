@@ -198,8 +198,9 @@ const DISTANCE_RESOLUTION: Meters = Meters::cm(1.0);
 /// On compte 2x car il y a les distances positives et négatives
 const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2.0 / DISTANCE_RESOLUTION.0) as usize + 1;
 
+/// Fonctionne avec les deux convention, distance négative et angle > 180
 fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
-    assert!(!(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN));
+    assert!(!(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN), "this should never happen, negative distance or angle over 180 are two different way to express the same thing and should not be used together : {:#?}", point);
     let offset = if point.distance.0.is_sign_positive() && point.angle < Rad::HALF_TURN {
         DISTANCE_TAILLE / 2
     } else {
@@ -210,7 +211,8 @@ fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
     (distance_case, angle_case)
 }
 
-fn case_to_polar_point(distance_case: usize, angle_case: usize) -> PolarLine {
+/// renvoit une ligne qui respecte la convention (distance positive, angle > 180)
+fn case_to_polar_line(distance_case: usize, angle_case: usize) -> PolarLine {
     let mut angle_offset = Rad::ZERO;
     let distance_corrected = if distance_case >= DISTANCE_TAILLE / 2 {
         distance_case - DISTANCE_TAILLE / 2
@@ -222,13 +224,12 @@ fn case_to_polar_point(distance_case: usize, angle_case: usize) -> PolarLine {
     PolarLine {
         distance: DISTANCE_RESOLUTION * distance_corrected as f64,
         angle: angle_offset + (Rad::new(ANGLE_RESOLUTION) * angle_case as f64),
-    }    
+    }
 }
 
-
 /// Attention compte pour 2, un en positif, un en négatif
-const MARGE_DISTANCE: i32 = 10;
-const MARGE_ANGLE: i32 = 10;
+const MARGE_DISTANCE: i32 = 3;
+const MARGE_ANGLE: i32 = 3;
 
 /// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
 fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLine)> {
@@ -265,81 +266,76 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<(HoughLine, HoughLin
         }
     }
 
-
     // TODO diviser le nombre par deux !
     for p_angle in 0..ANGLE_TAILLE {
         for p_distance in 0..DISTANCE_TAILLE {
-            let importance = accumulator[p_distance][p_angle];
-            if importance < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
+            let weight = accumulator[p_distance][p_angle];
+            if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                 continue;
             }
             println!("line at {} {}", p_angle, p_distance);
-            let distance = LidarDistance(p_distance as u16 * DISTANCE_RESOLUTION.0);
-            let angle = LidarAngle(p_angle as u16 * ANGLE_RESOLUTION.0);
-            
+            let line = case_to_polar_line(p_distance, p_angle);
+
             // 0 <= angle <= 180 donc pas besoin de bound check
             // penser à prendre la distance en négatif quand cal_angle > 180
             // let wanted_angle_for_perpendicular = angle.to_deg().rad() + Rad::QUARTER_TURN;
 
+            // convention distance négative angle < 180
+            let sign_line = PolarLine {
+                distance: if line.angle > Rad::HALF_TURN { -line.distance } else { line.distance },
+                angle: if line.angle > Rad::HALF_TURN { line.angle - Rad::HALF_TURN } else { line.angle }
+            };
+
             // rappel angle est entre 0 et 180
-            let wanted_angle_for_parallel = angle;
+            let wanted_angle_for_parallel = sign_line.angle;
+            println!("angle : {}", wanted_angle_for_parallel);
 
             // on teste uniquement "en dessous" car le robot (l'origine) doit toujours être à l'intérieur du terrain
-            let wanted_distance_for_parallel = distance.to_meters() - FIELD_WIDTH;
+            let wanted_distance_for_parallel = sign_line.distance - FIELD_WIDTH;
             // TODO assert!(distance.to_meters().0 * wanted_distance_for_parallel.0 > 0.0)
 
-            let offset = if wanted_distance_for_parallel.0.is_sign_positive() {
-                DISTANCE_TAILLE / 2
-            } else {
-                0
-            };
-            let wanted_angle_case: usize = (wanted_angle_for_parallel / ANGLE_RESOLUTION).into();
-            let wanted_distance_case: usize = offset + (LidarDistance::meters(wanted_distance_for_parallel.0.abs() as u16) / DISTANCE_RESOLUTION) as usize;
+            let (wanted_distance_case, wanted_angle_case) = polar_point_to_case(PolarPoint {
+                distance: wanted_distance_for_parallel,
+                angle: wanted_angle_for_parallel,
+            });
 
             for alea_distance in -MARGE_DISTANCE..=MARGE_DISTANCE {
-                if (wanted_distance_case as i32) + alea_distance < 0 || (wanted_distance_case as i32) + alea_distance >= DISTANCE_TAILLE as i32 {
+                if (wanted_distance_case as i32) + alea_distance < 0
+                    || (wanted_distance_case as i32) + alea_distance >= DISTANCE_TAILLE as i32
+                {
                     // out of bounds
                     continue;
                 }
                 for alea_angle in -MARGE_ANGLE..=MARGE_ANGLE {
-                    if (wanted_angle_case as i32) + alea_angle < 0 || (wanted_angle_case as i32) + alea_angle >= ANGLE_TAILLE as i32 {
+                    if (wanted_angle_case as i32) + alea_angle < 0
+                        || (wanted_angle_case as i32) + alea_angle >= ANGLE_TAILLE as i32
+                    {
                         // out of bounds
                         continue;
                     }
 
-                    let mut distance_case_applied = (wanted_distance_case as i32 + alea_distance) as usize;
+                    let distance_case_applied =
+                        (wanted_distance_case as i32 + alea_distance) as usize;
                     let angle_case_applied = (wanted_angle_case as i32 + alea_angle) as usize;
                     let weight = accumulator[distance_case_applied][angle_case_applied];
                     if weight > HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
-
-                        let mut angle_offset = Rad::ZERO;
-                        if distance_case_applied >= DISTANCE_TAILLE / 2 {
-                            distance_case_applied -= DISTANCE_TAILLE / 2;
-                        } else {
-                            angle_offset = Rad::HALF_TURN;
-                        }
-
                         let found_line = HoughLine {
-                            line: PolarLine {
-                                distance: (DISTANCE_RESOLUTION * distance_case_applied).to_meters(),
-                                angle: angle_offset + (ANGLE_RESOLUTION * angle_case_applied).to_deg().rad(),
-                            },
+                            line: case_to_polar_line(distance_case_applied, angle_case_applied),
                             weight,
                         };
-                        println!("{:?}", found_line);
+                        println!("found : {:?}", found_line);
                     } else {
                         //println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
                     }
                 }
             }
 
-            // p_angle 
+            // p_angle
         }
     }
 
     panic!();
     todo!()
-
 
     // // Tri des lignes selon le nombre de points
     // let mut trie = Vec::with_capacity(ANGLE_TAILLE * DISTANCE_TAILLE);
