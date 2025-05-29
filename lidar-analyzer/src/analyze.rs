@@ -729,6 +729,7 @@ fn locate_field_with_4_walls(
     field
 }
 
+#[derive(Debug)]
 enum _LineSize {
     Width,
     Length,
@@ -777,7 +778,11 @@ fn fallback_on_3_walls(
 fn guess_third_wall(parallel_known_wall: PolarLine, distance_between_lines: Meters) -> PolarLine {
     let patched_line = conv_convention_big_angle_to_negative_distance(parallel_known_wall);
     PolarLine {
-        distance: patched_line.distance - distance_between_lines,
+        distance: if patched_line.distance >= Meters(0.0) {
+            patched_line.distance - distance_between_lines
+        } else {
+            patched_line.distance + distance_between_lines
+        },
         angle: patched_line.angle,
     }
 }
@@ -1183,8 +1188,10 @@ mod tests {
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
 
+        // Bugs : 3, 4, 5
+
         // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
-        let data = load_log(TEST_HAUT_DROITE_ORIENTE_GAUCHE);
+        let data = load_log(TEST_HAUT_GAUCHE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
         let accumulator = build_hough_accumulator(&data);
         let mut candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
