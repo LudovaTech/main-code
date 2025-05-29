@@ -33,10 +33,10 @@ impl Meters {
 }
 
 impl Div for Meters {
-    type Output = Self;
+    type Output = f64;
 
     fn div(self, rhs: Self) -> Self::Output {
-        Self(self.0 / rhs.0)
+        self.0 / rhs.0
     }
 }
 
@@ -61,6 +61,20 @@ impl Sub for Meters {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
+    }
+}
+
+impl Mul<f64> for Meters {
+    type Output = Meters;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self(self.0 * rhs)
+    }
+}
+
+impl Meters {
+    pub fn abs(&self) -> Self {
+        Self(self.0.abs())
     }
 }
 
