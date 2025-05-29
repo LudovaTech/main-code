@@ -3,7 +3,9 @@ use std::cmp::Reverse;
 use std::error::Error;
 use std::fmt::Display;
 
-use crate::parse::{PolarPoint, LidarPoint};
+use eframe::egui::menu::MenuRootManager;
+
+use crate::parse::{LidarPoint, PolarPoint};
 use crate::units::*;
 
 // Constantes
@@ -196,6 +198,33 @@ const DISTANCE_RESOLUTION: Meters = Meters::cm(1.0);
 /// On compte 2x car il y a les distances positives et négatives
 const DISTANCE_TAILLE: usize = (LIDAR_DISTANCE_MAX.0 * 2.0 / DISTANCE_RESOLUTION.0) as usize + 1;
 
+fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
+    assert!(!(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN));
+    let offset = if point.distance.0.is_sign_positive() && point.angle < Rad::HALF_TURN {
+        DISTANCE_TAILLE / 2
+    } else {
+        0
+    };
+    let distance_case: usize = offset + (point.distance.abs() / DISTANCE_RESOLUTION) as usize;
+    let angle_case: usize = (point.angle / Rad::new(ANGLE_RESOLUTION)) as usize;
+    (distance_case, angle_case)
+}
+
+fn case_to_polar_point(distance_case: usize, angle_case: usize) -> PolarLine {
+    let mut angle_offset = Rad::ZERO;
+    let distance_corrected = if distance_case >= DISTANCE_TAILLE / 2 {
+        distance_case - DISTANCE_TAILLE / 2
+    } else {
+        angle_offset = Rad::HALF_TURN;
+        distance_case
+    };
+
+    PolarLine {
+        distance: DISTANCE_RESOLUTION * distance_corrected as f64,
+        angle: angle_offset + (Rad::new(ANGLE_RESOLUTION) * angle_case as f64),
+    }    
+}
+
 /// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
 fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
     // Création de la matrice de la transformation de Hough
@@ -213,16 +242,10 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
             // println!("{:?}", calculated_angle);
 
             // cos(x) = cos(abs(x))
-            let distance_factor = (point.point.angle - calculated_angle).mag().cos();
-            let offset = if distance_factor.is_sign_positive() {
-                DISTANCE_TAILLE / 2
-            } else {
-                0
-            };
-            let calculated_distance = point.point.distance * distance_factor.abs();
-            let distance_case: usize =
-                offset + (calculated_distance / DISTANCE_RESOLUTION) as usize;
-            let angle_case: usize = (calculated_angle / Rad::new(ANGLE_RESOLUTION)) as usize;
+            let (distance_case, angle_case) = polar_point_to_case(PolarPoint {
+                angle: calculated_angle,
+                distance: point.point.distance * (point.point.angle - calculated_angle).mag().cos(),
+            });
             // println!("{} {} {}", distance_case, offset, distance_factor);
             accumulator[distance_case][angle_case] =
                 accumulator[distance_case][angle_case].saturating_add(1);
@@ -239,23 +262,14 @@ fn build_hough_accumulator(points: &Vec<LidarPoint>) -> Vec<HoughLine> {
 
     // Tri des lignes selon le nombre de points
     let mut trie = Vec::with_capacity(ANGLE_TAILLE * DISTANCE_TAILLE);
-    for (mut distance_case, angles) in accumulator.into_iter().enumerate() {
+    for (distance_case, angles) in accumulator.into_iter().enumerate() {
         for (angle_case, weight) in angles.into_iter().enumerate() {
             if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                 continue;
             }
-            let mut angle_offset = Rad::ZERO;
-            if distance_case >= DISTANCE_TAILLE / 2 {
-                distance_case -= DISTANCE_TAILLE / 2;
-            } else {
-                angle_offset = Rad::HALF_TURN;
-            }
 
             trie.push(HoughLine {
-                line: PolarLine {
-                    distance: DISTANCE_RESOLUTION * distance_case as f64,
-                    angle: angle_offset + (Rad::new(ANGLE_RESOLUTION) * angle_case as f64),
-                },
+                line: case_to_polar_point(distance_case, angle_case),
                 weight,
             })
         }

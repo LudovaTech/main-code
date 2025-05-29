@@ -64,6 +64,12 @@ impl Mul<f64> for Meters {
     }
 }
 
+impl Meters {
+    pub fn abs(&self) -> Self {
+        Self(self.0.abs())
+    }
+}
+
 /// Représente une intensité entre 0 et 1 inclus
 #[derive(Debug, Clone, Copy)]
 pub struct Intensity(f64);
