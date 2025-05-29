@@ -403,7 +403,7 @@ fn search_all_parallel_lines(
 fn search_perpendicular_lines_of(
     accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
     line: PolarLine,
-) -> Vec<(PolarLine, HoughLine)> {
+) -> Vec<HoughLine> {
     // let (distance_case, angle_case) = polar_point_to_case(line._to_polar_point());
     let mut found_lines = Vec::new();
     let line = conv_convention_big_angle_to_negative_distance(line);
@@ -418,10 +418,8 @@ fn search_perpendicular_lines_of(
     let wanted_angle_case = polar_point_to_case_angle_only(wanted_angle_corrected);
 
     for p_distance in 0..DISTANCE_TAILLE {
-        found_lines.extend(
-            look_around_for_lines_angle_only(accumulator, p_distance, wanted_angle_case)
-                .iter()
-                .map(|e| (line, *e)),
+        found_lines.append(
+            &mut look_around_for_lines_angle_only(accumulator, p_distance, wanted_angle_case),
         );
     }
 
@@ -1098,11 +1096,11 @@ mod tests {
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
         let data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
-        let ha = build_hough_accumulator(&data);
-        let pl = search_all_parallel_lines(&ha, FIELD_LENGTH);
+        let accumulator = build_hough_accumulator(&data);
+        let all_parallel_lines = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
         let mut vl = Vec::with_capacity(50);
-        println!("{:#?}", pl);
-        println!("{}", pl.len());
+        println!("{:#?}", all_parallel_lines);
+        println!("{}", all_parallel_lines.len());
         // for ((first, second), color) in pl.iter().zip(COLORS.iter().cycle()) {
         //     vl.push(ViewportLine {
         //         line: first.line,
@@ -1114,68 +1112,18 @@ mod tests {
         //     });
         // }
 
-        let perpendicular_lines = search_perpendicular_lines_of(&ha, pl.first().unwrap().0.line);
+        let perpendicular_lines = search_perpendicular_lines_of(&accumulator, all_parallel_lines.first().unwrap().0.line);
 
         println!("{}", perpendicular_lines.len());
 
-        for ((first, second), color) in perpendicular_lines.iter().zip(COLORS.iter().cycle()) {
+        for (perpendicular_line, color) in perpendicular_lines.iter().zip(COLORS.iter().cycle()) {
             vl.push(ViewportLine {
-                line: *first,
-                stroke: egui::Stroke::new(5.0, *color),
-            });
-            vl.push(ViewportLine {
-                line: second.line,
+                line: perpendicular_line.line,
                 stroke: egui::Stroke::new(5.0, *color),
             });
         }
 
         show_viewport(*data, vl).unwrap();
         panic!()
-        // println!("{:?}", ha.len());
-        // let walls = find_walls(ha.iter().copied().collect()).unwrap();
-
-        // let walls = try_to_complete_walls_from_uncomplete_data(walls).unwrap();
-
-        // let mut walls_vec = vec![walls.first_wall];
-
-        // if let Some(parallel_wall) = walls.parallele_wall {
-        //     walls_vec.push(parallel_wall);
-        // }
-        // if let Some(perpendicular_wall_1) = walls.perpendicular_wall_1 {
-        //     walls_vec.push(perpendicular_wall_1);
-        // }
-        // if let Some(perpendicular_wall_2) = walls.perpendicular_wall_2 {
-        //     walls_vec.push(perpendicular_wall_2);
-        // }
-
-        // show_viewport(
-        //     *data,
-        //     ha.iter()
-        //         .map(|e| ViewportLine {
-        //             line: e.line,
-        //             stroke: egui::Stroke::new(5.0, egui::Color32::DARK_RED),
-        //         }) // egui::Stroke::new(5.0, egui::Color32::BLUE),
-        //         .chain(walls_vec.into_iter().map(|e| match e {
-        //             WallLine::GuessedLine(GuessedLine { line }) => ViewportLine {
-        //                 line: line,
-        //                 stroke: egui::Stroke::new(5.0, egui::Color32::DARK_BLUE),
-        //             },
-        //             WallLine::HoughLine(HoughLine { line, weight: _ }) => ViewportLine {
-        //                 line: line,
-        //                 stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
-        //             },
-        //         }))
-        //         .collect(),
-        // )
-        // .unwrap();
-
-        // println!("{:#?}", walls);
-        // panic!("show");
-        // show_viewport(
-        //     *data,
-        //     ha.into_iter().map(|e| e.line).collect(),
-        //     walls.into_iter().map(|e| e.line).collect(),
-        // )
-        // .unwrap();
     }
 }
