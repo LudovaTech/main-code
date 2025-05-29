@@ -1,12 +1,11 @@
 //! Lit les données du lidar depuis la connexion série et les transforme en une forme utilisable
 
+use crate::units::*;
 use rppal::uart::{self, Uart};
 use std::error::Error;
 use std::fmt::Display;
-use std::ops::{AddAssign, Div, Mul, Sub};
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
-use crate::units::*;
 
 /// Représente l'ensemble des erreurs pouvant survenir lors de l'utilisation du lidar
 #[derive(Debug)]
@@ -115,17 +114,22 @@ impl Lidar {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PolarPoint {
+    pub distance: Meters,
+    pub angle: Rad,
+}
+
 /// Représente un point donné par le lidar.
-/// 
+///
 /// Unités :
-///  - distance en mètres 
+///  - distance en mètres
 ///  - intensité entre 0 et 1
 ///  - angle en radians
 #[derive(Debug, Clone)]
 pub struct LidarPoint {
-    pub distance: Meters,
+    pub point: PolarPoint,
     pub intensity: Intensity,
-    pub angle: Rad,
 }
 
 impl LidarPoint {
@@ -144,9 +148,11 @@ impl LidarPoint {
             // Transformation des unités :
             // intensité 0-255 u8 -> 0-1 f64
             points.push(LidarPoint {
-                distance: Meters::mm(f64::from(Self::get_2_bytes_lsb_msb(&data, i))),
+                point: PolarPoint {
+                    distance: Meters::mm(f64::from(Self::get_2_bytes_lsb_msb(&data, i))),
+                    angle: Rad::ZERO,
+                },
                 intensity: Intensity::from_u8(data[i + 2]),
-                angle: Rad::ZERO,
             });
         }
         let end_angle = Self::get_2_bytes_lsb_msb(&data, 42);
@@ -164,7 +170,7 @@ impl LidarPoint {
 
         for (n_point, point) in points.iter_mut().enumerate() {
             let angle = (start_angle + (angle_step * (n_point as u16))) % 36_000;
-            point.angle = Deg::new(f64::from(angle) / 100.0).rad();
+            point.point.angle = Deg::new(f64::from(angle) / 100.0).rad();
         }
         Ok(points)
     }
@@ -174,7 +180,6 @@ impl LidarPoint {
         (buffer[index + 1] as u16) << 8 | (buffer[index] as u16)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@ use eframe::{egui, EventLoopBuilderHook};
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 
 use crate::analyze::{PolarLine, WallLine};
-use crate::parse::LidarPoint;
+use crate::parse::{LidarPoint, PolarPoint};
 use crate::units::*;
 
 const DEFAULT_ZOOM: f32 = 180.0;
@@ -21,8 +21,10 @@ impl Default for PolarPointsApp {
     fn default() -> Self {
         let points = (0..360)
             .map(|i| LidarPoint {
-                angle: Deg::new(i.into()).rad(),
-                distance: Meters(3.0),
+                point: PolarPoint {
+                    distance: Meters(3.0),
+                    angle: Deg::new(i.into()).rad(),
+                },
                 intensity: Intensity::NULL,
             })
             .collect();
@@ -94,8 +96,8 @@ impl eframe::App for PolarPointsApp {
             let center = ui.available_rect_before_wrap().center() + self.offset;
 
             for point in &self.points {
-                let x = center.x + (point.angle.cos() * point.distance.0) as f32 * self.zoom;
-                let y = center.y + (point.angle.sin() * point.distance.0) as f32 * self.zoom;
+                let x = center.x + (point.point.angle.cos() * point.point.distance.0) as f32 * self.zoom;
+                let y = center.y + (point.point.angle.sin() * point.point.distance.0) as f32 * self.zoom;
                 painter.circle(
                     egui::pos2(x, y),
                     5.0,
