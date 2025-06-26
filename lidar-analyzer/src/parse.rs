@@ -197,7 +197,7 @@ impl LidarPoint {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     // write unit tests here :-)
 }

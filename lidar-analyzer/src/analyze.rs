@@ -1,8 +1,5 @@
 use core::f64;
-use std::error::Error;
-use std::fmt::Display;
 
-use tracing::Instrument;
 
 use crate::parse::{LidarPoint, PolarPoint};
 use crate::units::*;
@@ -585,7 +582,7 @@ fn calculate_center_of_field_in_carthesian(walls: &FieldWalls) -> (f64, f64) {
 
 #[cfg(test)]
 mod tests {
-    use eframe::egui;
+    
 
     use super::*;
     use crate::complex_viewport::show_viewport;
@@ -997,11 +994,11 @@ mod tests {
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
 
         // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
-        let mut data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
+        let data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
         // println!("{:#?}", data);
         let accumulator = build_hough_accumulator(&data);
-        let mut candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
-        let mut candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
+        let candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
+        let candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
 
         let field = locate_field_with_4_walls(&candidate_line_width, &candidate_line_length)
             .or_else(|| {

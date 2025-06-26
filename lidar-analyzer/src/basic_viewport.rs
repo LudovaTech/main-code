@@ -2,7 +2,7 @@ use eframe::egui::Pos2;
 use eframe::{egui, EventLoopBuilderHook};
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 
-use crate::analyze::{PolarLine, WallLine};
+use crate::analyze::PolarLine;
 use crate::parse::{LidarPoint, PolarPoint};
 use crate::units::*;
 
