@@ -127,6 +127,11 @@ impl PolarPoint {
             self.distance.0 * self.angle.sin(),
         )
     }
+
+    pub fn to_carthesian_point_f32(&self) -> (f32, f32) {
+        let (x, y) = self.to_carthesian_point();
+        (x as f32, y as f32)
+    }
 }
 
 /// Représente un point donné par le lidar.

@@ -13,6 +13,8 @@ mod analyze_tests_data;
 
 #[cfg(test)]
 mod basic_viewport;
+#[cfg(test)]
+mod complex_viewport;
 
 #[inline]
 fn set_up_logging() -> Result<(), Box<dyn Error>> {

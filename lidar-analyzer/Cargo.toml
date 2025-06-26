@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 radians = "0.3.1"
+rerun = "0.23.4"
 rppal = "0.22.1"
 tracing = "0.1.41"
 tracing-panic = "0.1.2"

@@ -588,7 +588,7 @@ mod tests {
     use eframe::egui;
 
     use super::*;
-    use crate::basic_viewport::show_viewport;
+    use crate::complex_viewport::show_viewport;
     use crate::{analyze_tests_data::lidar_test_data::*, parse::PolarPoint};
     use std::time::{Duration, Instant};
 
@@ -964,23 +964,35 @@ mod tests {
         )
     }
 
-    const COLORS: [egui::Color32; 11] = [
-        egui::Color32::BLUE,
-        egui::Color32::BROWN,
-        egui::Color32::CYAN,
-        egui::Color32::DARK_BLUE,
-        egui::Color32::DARK_GRAY,
-        egui::Color32::DARK_GREEN,
-        egui::Color32::DARK_RED,
-        egui::Color32::GOLD,
-        egui::Color32::GRAY,
-        egui::Color32::GREEN,
-        egui::Color32::KHAKI,
+    const BLUE: (u8, u8, u8) = (0, 191, 255);      // Electric Blue
+    const PURPLE: (u8, u8, u8) = (128, 0, 128);   // Purple
+    const TEAL: (u8, u8, u8) = (0, 128, 128);     // Teal
+    const PINK: (u8, u8, u8) = (255, 105, 180);    // Hot Pink
+    const YELLOW: (u8, u8, u8) = (255, 215, 0);    // Gold
+    const GREEN: (u8, u8, u8) = (0, 255, 0);       // Bright Green
+    const ORANGE: (u8, u8, u8) = (255, 165, 0);    // Orange
+    const MAGENTA: (u8, u8, u8) = (255, 0, 255);   // Magenta
+    const SKY_BLUE: (u8, u8, u8) = (135, 206, 235); // Sky Blue
+    const SPRING_GREEN: (u8, u8, u8) = (0, 255, 127); // Spring Green
+    const CORAL: (u8, u8, u8) = (255, 127, 80);    // Coral
+    
+    const COLORS: [(u8, u8, u8); 11] = [
+        BLUE,
+        PURPLE,
+        TEAL,
+        PINK,
+        YELLOW,
+        GREEN,
+        ORANGE,
+        MAGENTA,
+        SKY_BLUE,
+        SPRING_GREEN,
+        CORAL,
     ];
 
     #[test]
     fn test_1() {
-        use crate::basic_viewport::ViewportLine;
+        use crate::complex_viewport::ViewportLine;
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
 
@@ -1001,19 +1013,19 @@ mod tests {
         if let Some(field_found) = field {
             vl.push(ViewportLine {
                 line: field_found.length1.line(),
-                stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+                color: BLUE,
             });
             vl.push(ViewportLine {
                 line: field_found.length2.line(),
-                stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+                color: BLUE,
             });
             vl.push(ViewportLine {
                 line: field_found.width1.line(),
-                stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+                color: BLUE,
             });
             vl.push(ViewportLine {
                 line: field_found.width2.line(),
-                stroke: egui::Stroke::new(5.0, egui::Color32::BLUE),
+                color: BLUE,
             });
 
             let center = calculate_center_of_field_in_carthesian(&field_found);
