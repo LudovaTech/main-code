@@ -12,8 +12,6 @@ mod analyze;
 mod analyze_tests_data;
 
 #[cfg(test)]
-mod basic_viewport;
-#[cfg(test)]
 mod complex_viewport;
 
 #[inline]
@@ -35,7 +33,7 @@ fn set_up_logging() -> Result<(), Box<dyn Error>> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     set_up_logging()?;
-    let mut lidar = parse::Lidar::new()?;
+    let lidar = parse::Lidar::new()?;
     // loop {
     //     let data = lidar.read()?;
     //     let points = parse::LidarPoint::from_data(data)?;

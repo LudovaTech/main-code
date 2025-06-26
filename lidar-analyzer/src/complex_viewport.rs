@@ -1,11 +1,8 @@
 use std::error::Error;
 
-use eframe::egui::Pos2;
-use eframe::{egui, EventLoopBuilderHook};
-use winit::platform::wayland::EventLoopBuilderExtWayland;
 
-use crate::analyze::{PolarLine, WallLine};
-use crate::parse::{LidarPoint, PolarPoint};
+use crate::analyze::PolarLine;
+use crate::parse::LidarPoint;
 use crate::units::*;
 
 #[inline]
