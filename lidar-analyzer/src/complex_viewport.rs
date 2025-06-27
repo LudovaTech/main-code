@@ -1,6 +1,5 @@
 use std::error::Error;
 
-
 use crate::analyze::PolarLine;
 use crate::parse::LidarPoint;
 use crate::units::*;
@@ -8,7 +7,7 @@ use crate::units::*;
 #[inline]
 fn line_coords(vline: &ViewportLine) -> [(f32, f32); 2] {
     let perpendicular_angle = vline.line.angle + Rad::QUARTER_TURN;
-    let length: f32 = 10.0;
+    let length: f32 = 3.0;
     let x_end: f32 = (vline.line.distance.0 * vline.line.angle.cos()) as f32;
     let y_end: f32 = (vline.line.distance.0 * vline.line.angle.sin()) as f32;
     let x1: f32 = x_end + length * perpendicular_angle.cos() as f32;
@@ -19,10 +18,11 @@ fn line_coords(vline: &ViewportLine) -> [(f32, f32); 2] {
 }
 
 pub fn show_viewport(
+    viewport_name: &str,
     points: Vec<LidarPoint>,
     lines: Vec<ViewportLine>,
 ) -> Result<(), Box<dyn Error>> {
-    let rec = rerun::RecordingStreamBuilder::new("robot_viewport").spawn()?;
+    let rec = rerun::RecordingStreamBuilder::new(viewport_name).spawn()?;
     rec.log(
         "lidar/points",
         &rerun::Points2D::new(points.iter().map(|e| e.point.to_carthesian_point_f32()))

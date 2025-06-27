@@ -1,8 +1,9 @@
 use std::error::Error;
 use std::fs::OpenOptions;
 
-use tracing::{info, subscriber};
+use tracing::{info, subscriber, Subscriber};
 use tracing_panic::panic_hook;
+use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{self, fmt, Registry};
 
@@ -14,6 +15,27 @@ mod analyze_tests_data;
 #[cfg(test)]
 mod complex_viewport;
 
+
+struct TransferLogsToRerun {
+    rec: rerun::RecordingStream
+}
+
+impl TransferLogsToRerun {
+    fn new(rec: rerun::RecordingStream) -> Self {
+        Self {
+            rec
+        }
+    }
+}
+
+// impl<S: Subscriber> Layer<S> for TransferLogsToRerun
+// {
+//     fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
+//         println!("{:?}", ctx.current_span());
+//         self.rec.log("code", &rerun::TextLog::new(event.fields().map(|e| format!("{}", e)).join())).unwrap() // TODO
+//     }
+// }
+
 #[inline]
 fn set_up_logging() -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all("log")?;
@@ -24,6 +46,7 @@ fn set_up_logging() -> Result<(), Box<dyn Error>> {
     let subscriber_param = Registry::default()
         .with(fmt::layer().with_ansi(true))
         .with(fmt::layer().with_ansi(false).with_writer(log_file));
+        //.with(fmt::layer().with_ansi(true).with);
     subscriber::set_global_default(subscriber_param)?;
 
     std::panic::set_hook(Box::new(panic_hook));
