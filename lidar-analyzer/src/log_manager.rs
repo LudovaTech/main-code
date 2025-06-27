@@ -1,18 +1,16 @@
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::field::Visit;
-use tracing::{Subscriber, subscriber};
+use tracing::subscriber;
 use tracing_panic::panic_hook;
-use tracing_subscriber::field::RecordFields;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{self, Registry, fmt};
 use tracing_subscriber::{EnvFilter, Layer};
 
 use crate::prelude::*;
 
-
 #[inline]
-pub fn set_up_logging() -> Result<(), Box<dyn Error>> {
+pub fn set_up_logging(rec: rerun::RecordingStream) -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all("log")?;
     let log_file = OpenOptions::new()
         .append(true)
@@ -21,7 +19,7 @@ pub fn set_up_logging() -> Result<(), Box<dyn Error>> {
     let subscriber_param = Registry::default()
         .with(fmt::layer().with_ansi(true))
         .with(fmt::layer().with_ansi(false).with_writer(log_file))
-        .with(RerunLayer::new())
+        .with(RerunLayer::new(rec))
         .with(EnvFilter::new("warn,lidar_analyzer=info")); // remember "-" must be replaced by "_" in the filter
     subscriber::set_global_default(subscriber_param)?;
 
@@ -29,7 +27,6 @@ pub fn set_up_logging() -> Result<(), Box<dyn Error>> {
     info!("NEW START");
     Ok(())
 }
-
 
 // Couche de compatibilité tracing/rerun
 
@@ -39,10 +36,8 @@ struct RerunLayer {
 }
 
 impl RerunLayer {
-    fn new() -> Self {
-        Self {
-            rec: rerun::RecordingStreamBuilder::new("aaaa").spawn().unwrap(),
-        }
+    fn new(rec: rerun::RecordingStream) -> Self {
+        Self { rec }
     }
 }
 
@@ -56,19 +51,31 @@ where
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let path_to: Vec<&str> = event.metadata().target().split("::").take(2).collect();
+        let mut log_level = event.metadata().level().as_str();
         let mut visitor = RerunLayerVisitor::default();
         event.record(&mut visitor);
+        if *event.metadata().level() == tracing::Level::ERROR
+            && (visitor.message.starts_with("!!!")
+                || visitor.message.starts_with("A panic occurred"))
+        {
+            // Then the error is critical (there is no critical type in tracing)
+            log_level = "CRITICAL"
+        }
+
+        let mut text_log = rerun::TextLog::new(format!(
+            "{} | from {} | env {}.",
+            visitor.message,
+            event.metadata().name(),
+            visitor.log_text
+        ))
+        .with_level(log_level);
+
+        if log_level == "CRITICAL" {
+            text_log = text_log.with_color(colors::DARK_RED);
+        }
+
         self.rec
-            .log(
-                "code/".to_owned() + &path_to.join("/"),
-                &rerun::TextLog::new(format!(
-                    "{} | from {} | env {}.",
-                    visitor.message,
-                    event.metadata().name(),
-                    visitor.log_text
-                ))
-                .with_level(event.metadata().level().as_str()),
-            )
+            .log("code/".to_owned() + &path_to.join("/"), &text_log)
             .unwrap()
     }
 }

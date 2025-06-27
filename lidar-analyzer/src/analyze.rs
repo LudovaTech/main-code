@@ -585,7 +585,7 @@ mod tests {
     
 
     use super::*;
-    use crate::complex_viewport::show_viewport;
+    use crate::complex_viewport::{log_lidar_lines, log_lidar_points, show_viewport};
     use crate::{analyze_tests_data::lidar_test_data::*, parse::PolarPoint};
     use std::time::{Duration, Instant};
 
@@ -961,35 +961,11 @@ mod tests {
         )
     }
 
-    const BLUE: (u8, u8, u8) = (0, 191, 255);      // Electric Blue
-    const PURPLE: (u8, u8, u8) = (128, 0, 128);   // Purple
-    const TEAL: (u8, u8, u8) = (0, 128, 128);     // Teal
-    const PINK: (u8, u8, u8) = (255, 105, 180);    // Hot Pink
-    const YELLOW: (u8, u8, u8) = (255, 215, 0);    // Gold
-    const GREEN: (u8, u8, u8) = (0, 255, 0);       // Bright Green
-    const ORANGE: (u8, u8, u8) = (255, 165, 0);    // Orange
-    const MAGENTA: (u8, u8, u8) = (255, 0, 255);   // Magenta
-    const SKY_BLUE: (u8, u8, u8) = (135, 206, 235); // Sky Blue
-    const SPRING_GREEN: (u8, u8, u8) = (0, 255, 127); // Spring Green
-    const CORAL: (u8, u8, u8) = (255, 127, 80);    // Coral
-    
-    const COLORS: [(u8, u8, u8); 11] = [
-        BLUE,
-        PURPLE,
-        TEAL,
-        PINK,
-        YELLOW,
-        GREEN,
-        ORANGE,
-        MAGENTA,
-        SKY_BLUE,
-        SPRING_GREEN,
-        CORAL,
-    ];
-
     #[test]
     fn test_1() {
         use crate::complex_viewport::ViewportLine;
+        let rec = rerun::RecordingStreamBuilder::new("test_1").spawn().unwrap();
+        crate::log_manager::set_up_logging(rec.clone()).unwrap();
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
 
@@ -1010,23 +986,23 @@ mod tests {
         if let Some(field_found) = field {
             vl.push(ViewportLine {
                 line: field_found.length1.line(),
-                color: BLUE,
+                color: colors::BLUE,
             });
             vl.push(ViewportLine {
                 line: field_found.length2.line(),
-                color: BLUE,
+                color: colors::BLUE,
             });
             vl.push(ViewportLine {
                 line: field_found.width1.line(),
-                color: BLUE,
+                color: colors::BLUE,
             });
             vl.push(ViewportLine {
                 line: field_found.width2.line(),
-                color: BLUE,
+                color: colors::BLUE,
             });
 
             let center = calculate_center_of_field_in_carthesian(&field_found);
-            println!("{:?}", center);
+            info!("{:?}", center);
         }
 
         // for ((first, second), color) in pl.iter().zip(COLORS.iter().cycle()) {
@@ -1054,7 +1030,8 @@ mod tests {
         //     });
         // }
 
-        show_viewport("test_1", *data, vl).unwrap();
+        log_lidar_points(rec, *data).unwrap();
+        log_lidar_lines(rec, vl).unwrap();
         panic!()
     }
 }

@@ -12,7 +12,7 @@ use tracing::instrument;
 pub enum LidarError {
     /// Erreurs concernant la connexion uart
     UartError(uart::Error),
-    /// Il n'y a pas assez de données pour constituer un tour complet de lidar
+    /// Il n'y a pas assez de données pour constituer un tour complet de lidar      
     NotEnoughData(usize),
     /// Erreur causée probablement par un bug
     /// devrait paniquer dans une situation normale mais on veut éviter que le comportement du robot soit affecté

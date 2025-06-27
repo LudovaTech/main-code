@@ -15,8 +15,8 @@ use crate::log_manager::set_up_logging;
 use prelude::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    //let rec = rerun::RecordingStreamBuilder::new("aaaa").spawn()?;
-    set_up_logging()?;
+    let rec = rerun::RecordingStreamBuilder::new("lidar_analyzer").spawn()?;
+    set_up_logging(rec.clone())?;
     //let lidar = parse::Lidar::new()?;
     // rec.log("test1", &rerun::Points2D::new([(0., 0.), (1., 1.)])).unwrap();
     // debug!("test1");
