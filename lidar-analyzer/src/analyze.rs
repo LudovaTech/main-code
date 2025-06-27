@@ -1058,3 +1058,8 @@ mod tests {
         panic!()
     }
 }
+
+
+pub fn test_call() {
+    tracing::info!("is here")
+}
