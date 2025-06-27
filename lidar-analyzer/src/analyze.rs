@@ -2,7 +2,7 @@ use core::f64;
 
 
 use crate::parse::{LidarPoint, PolarPoint};
-use crate::units::*;
+use crate::prelude::*;
 
 // Constantes
 
