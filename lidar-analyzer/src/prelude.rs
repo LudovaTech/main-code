@@ -20,6 +20,7 @@ pub mod colors {
     pub const SPRING_GREEN: (u8, u8, u8) = (0, 255, 127); // Spring Green
     pub const CORAL: (u8, u8, u8) = (255, 127, 80);    // Coral
     pub const DARK_RED: (u8, u8, u8) = (178, 34, 34);
+    pub const WHITE: (u8, u8, u8) = (255, 255, 255);
     
     pub const COLORS: [(u8, u8, u8); 12] = [
         BLUE,
