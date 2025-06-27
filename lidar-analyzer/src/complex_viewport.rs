@@ -17,18 +17,22 @@ fn line_coords(vline: &ViewportLine) -> [(f32, f32); 2] {
     [(x1, y1), (x2, y2)]
 }
 
-pub fn show_viewport(
-    viewport_name: &str,
+pub fn log_lidar_points(
+    rec: rerun::RecordingStream,
     points: Vec<LidarPoint>,
-    lines: Vec<ViewportLine>,
 ) -> Result<(), Box<dyn Error>> {
-    let rec = rerun::RecordingStreamBuilder::new(viewport_name).spawn()?;
     rec.log(
         "lidar/points",
         &rerun::Points2D::new(points.iter().map(|e| e.point.to_carthesian_point_f32()))
             .with_labels(points.iter().map(|e| format!("{:#?}", e))),
     )?;
+    Ok(())
+}
 
+pub fn log_lidar_lines(
+    rec: rerun::RecordingStream,
+    lines: Vec<ViewportLine>,
+) -> Result<(), Box<dyn Error>> {
     let line_points: Vec<(f32, f32)> = lines.iter().map(|e| line_coords(e)).flatten().collect();
     rec.log(
         "lidar/lines",
