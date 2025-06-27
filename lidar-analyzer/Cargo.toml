@@ -15,8 +15,3 @@ tracing-subscriber = "0.3.19"
 default-features = false
 features = ["wayland"]
 version = "0.30.9"
-
-[dependencies.eframe]
-default-features = false
-features = ["default_fonts", "glow", "wayland"]
-version = "0.31.1"

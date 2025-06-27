@@ -1054,7 +1054,7 @@ mod tests {
         //     });
         // }
 
-        show_viewport(*data, vl).unwrap();
+        show_viewport("test_1", *data, vl).unwrap();
         panic!()
     }
 }
