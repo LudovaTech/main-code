@@ -18,8 +18,8 @@ fn line_coords(vline: &ViewportLine) -> [(f32, f32); 2] {
 }
 
 pub fn log_lidar_points(
-    rec: rerun::RecordingStream,
-    points: Vec<LidarPoint>,
+    rec: &rerun::RecordingStream,
+    points: &Vec<LidarPoint>,
 ) -> Result<(), Box<dyn Error>> {
     rec.log(
         "lidar/points",
@@ -30,7 +30,7 @@ pub fn log_lidar_points(
 }
 
 pub fn log_lidar_lines(
-    rec: rerun::RecordingStream,
+    rec: &rerun::RecordingStream,
     lines: Vec<ViewportLine>,
 ) -> Result<(), Box<dyn Error>> {
     let line_points: Vec<(f32, f32)> = lines.iter().map(|e| line_coords(e)).flatten().collect();

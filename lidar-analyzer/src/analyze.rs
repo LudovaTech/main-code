@@ -1,6 +1,5 @@
 use core::f64;
 
-
 use crate::parse::{LidarPoint, PolarPoint};
 use crate::prelude::*;
 
@@ -202,7 +201,11 @@ fn polar_point_to_case_angle_only(angle: Rad) -> usize {
 
 /// Fonctionne avec les deux convention, distance négative et angle > 180
 fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
-    assert!(!(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN), "this should never happen, negative distance or angle over 180 are two different way to express the same thing and should not be used together : {:#?}", point);
+    assert!(
+        !(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN),
+        "this should never happen, negative distance or angle over 180 are two different way to express the same thing and should not be used together : {:#?}",
+        point
+    );
     let offset = if point.distance.0.is_sign_positive() && point.angle < Rad::HALF_TURN {
         DISTANCE_TAILLE / 2
     } else {
@@ -439,7 +442,6 @@ impl WallLine {
     }
 }
 
-
 fn locate_field_with_4_walls(
     candidate_line_width: &Vec<(HoughLine, HoughLine)>,
     candidate_line_length: &Vec<(HoughLine, HoughLine)>,
@@ -497,7 +499,7 @@ fn fallback_on_3_walls(
     all_detected_lines.sort_by_key(|(_, (l1, l2))| l1.weight + l2.weight);
 
     let perpendiculars =
-        search_perpendicular_lines_of(&accumulator, all_detected_lines.first().unwrap().1 .0.line);
+        search_perpendicular_lines_of(&accumulator, all_detected_lines.first().unwrap().1.0.line);
     if !perpendiculars.is_empty() {
         let perpendicular = perpendiculars.first().unwrap();
         Some(match all_detected_lines.first().unwrap() {
@@ -582,10 +584,9 @@ fn calculate_center_of_field_in_carthesian(walls: &FieldWalls) -> (f64, f64) {
 
 #[cfg(test)]
 mod tests {
-    
 
     use super::*;
-    use crate::complex_viewport::{log_lidar_lines, log_lidar_points, show_viewport};
+    use crate::complex_viewport::{log_lidar_lines, log_lidar_points};
     use crate::{analyze_tests_data::lidar_test_data::*, parse::PolarPoint};
     use std::time::{Duration, Instant};
 
@@ -964,13 +965,25 @@ mod tests {
     #[test]
     fn test_1() {
         use crate::complex_viewport::ViewportLine;
-        let rec = rerun::RecordingStreamBuilder::new("test_1").spawn().unwrap();
+        let rec = rerun::RecordingStreamBuilder::new("test_1")
+            .spawn()
+            .unwrap();
         crate::log_manager::set_up_logging(rec.clone()).unwrap();
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
+        rec.log(
+            "lidar/real_robot_pos",
+            &rerun::Points2D::new([(0., 0.)])
+                .with_colors([colors::WHITE])
+                .with_radii([0.01])
+                .with_labels(["Position réelle du robot"])
+                .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+        )
+        .unwrap();
 
         // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         let data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
+        log_lidar_points(&rec, &data).unwrap();
         // println!("{:#?}", data);
         let accumulator = build_hough_accumulator(&data);
         let candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
@@ -978,6 +991,7 @@ mod tests {
 
         let field = locate_field_with_4_walls(&candidate_line_width, &candidate_line_length)
             .or_else(|| {
+                info!("Détection 4 murs échouée, tente avec 3 murs");
                 fallback_on_3_walls(&accumulator, candidate_line_width, candidate_line_length)
             });
 
@@ -1001,8 +1015,19 @@ mod tests {
                 color: colors::BLUE,
             });
 
+            log_lidar_lines(&rec, vl).unwrap();
+
             let center = calculate_center_of_field_in_carthesian(&field_found);
             info!("{:?}", center);
+            rec.log(
+                "lidar/cal_center_field",
+                &rerun::Points2D::new([(center.0 as f32, center.1 as f32)])
+                    .with_colors([colors::MAGENTA])
+                    .with_radii([0.01])
+                    .with_labels(["centre du terrain calculé"])
+                    .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+            )
+            .unwrap();
         }
 
         // for ((first, second), color) in pl.iter().zip(COLORS.iter().cycle()) {
@@ -1029,13 +1054,9 @@ mod tests {
         //         stroke: egui::Stroke::new(5.0, *color),
         //     });
         // }
-
-        log_lidar_points(rec, *data).unwrap();
-        log_lidar_lines(rec, vl).unwrap();
         panic!()
     }
 }
-
 
 pub fn test_call() {
     tracing::info!("is here")
