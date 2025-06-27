@@ -1,6 +1,4 @@
 //! Contient tous les types unités utilisés par l'ensemble du code.
-//! 
-//! Ce fichier est destiné à être `use units::*` donc peu de choses sont publiques
 
 use std::ops::{Add, Div, Mul, Neg, Sub};
 

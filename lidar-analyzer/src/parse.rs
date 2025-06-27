@@ -1,11 +1,11 @@
 //! Lit les données du lidar depuis la connexion série et les transforme en une forme utilisable
 
-use crate::units::*;
+use crate::prelude::*;
 use rppal::uart::{self, Uart};
 use std::error::Error;
 use std::fmt::Display;
 use std::time::{Duration, Instant};
-use tracing::{error, info, instrument, warn};
+use tracing::instrument;
 
 /// Représente l'ensemble des erreurs pouvant survenir lors de l'utilisation du lidar
 #[derive(Debug)]

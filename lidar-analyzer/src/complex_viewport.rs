@@ -2,7 +2,7 @@ use std::error::Error;
 
 use crate::analyze::PolarLine;
 use crate::parse::LidarPoint;
-use crate::units::*;
+use crate::prelude::*;
 
 #[inline]
 fn line_coords(vline: &ViewportLine) -> [(f32, f32); 2] {
