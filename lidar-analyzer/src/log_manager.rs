@@ -20,7 +20,7 @@ pub fn set_up_logging(rec: rerun::RecordingStream) -> Result<(), Box<dyn Error>>
         .with(fmt::layer().with_ansi(true))
         .with(fmt::layer().with_ansi(false).with_writer(log_file))
         .with(RerunLayer::new(rec))
-        .with(EnvFilter::new("warn,lidar_analyzer=info")); // remember "-" must be replaced by "_" in the filter
+        .with(EnvFilter::new("warn,lidar_analyzer=trace")); // remember "-" must be replaced by "_" in the filter
     subscriber::set_global_default(subscriber_param)?;
 
     std::panic::set_hook(Box::new(panic_hook));
