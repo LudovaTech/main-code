@@ -1,4 +1,6 @@
-use core::f64;
+use core::{f64, time};
+
+use rerun::external::arrow::datatypes::Field;
 
 use crate::parse::{LidarPoint, PolarPoint};
 use crate::prelude::*;
@@ -109,15 +111,15 @@ impl PolarLine {
     fn intersect(&self, other: &Self) -> Option<PolarPoint> {
         // angles between 0-2pi
         let self_angle_wrap = Rad::new((self.angle + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
-        let other_angle_wrap = Rad::new((other.angle + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
-        debug!("{} {}", self_angle_wrap, other_angle_wrap);
+        let other_angle_wrap =
+            Rad::new((other.angle + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
         if self.is_parallel_with(other) {
             // Les droites sont alignés
             return None;
         }
         let theta = Rad::atan2(
-             other.distance.0 * self_angle_wrap.cos() - self.distance.0 * other_angle_wrap.cos(),
-             self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin(),
+            other.distance.0 * self_angle_wrap.cos() - self.distance.0 * other_angle_wrap.cos(),
+            self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin(),
         );
 
         let theta = Rad::new((theta + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
@@ -180,7 +182,7 @@ fn check_around(
 }
 
 /// on exclut les lignes qui contiennent moins de x points
-const HOUGH_TRANSFORM_MIN_POINT_PER_LINE: u16 = 50;
+const HOUGH_TRANSFORM_MIN_POINT_PER_LINE: u16 = 30;
 
 /// distance maximale en dessous de laquelle les points détectés du lidar sont conservés
 const LIDAR_DISTANCE_MAX: Meters = Meters(3.0);
@@ -364,7 +366,7 @@ fn search_all_parallel_lines(
             if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                 continue;
             }
-            println!("line at {} {}", p_angle, p_distance);
+            // trace!("line at {} {}", p_angle, p_distance);
             let line = case_to_polar_line(p_distance, p_angle);
 
             // 0 <= angle <= 180 donc pas besoin de bound check
@@ -447,11 +449,11 @@ impl WallLine {
     }
 }
 
-fn locate_field_with_4_walls(
+fn _anc_locate_field_with_4_walls(
     candidate_line_width: &Vec<(HoughLine, HoughLine)>,
     candidate_line_length: &Vec<(HoughLine, HoughLine)>,
 ) -> Option<FieldWalls> {
-    let mut score = 0;
+    let mut score = 0.;
     let mut field: Option<FieldWalls> = None;
     for parallel_width in candidate_line_width.iter() {
         for parallel_length in candidate_line_length.iter() {
@@ -461,10 +463,11 @@ fn locate_field_with_4_walls(
                 .is_approx_perpendicular_with(&parallel_length.0.line)
             {
                 // la paire fonctionne
-                let this_score = parallel_width.0.weight
-                    + parallel_width.1.weight
-                    + parallel_length.0.weight
-                    + parallel_length.1.weight;
+                let this_score = f64::from(parallel_width.0.weight)
+                    * parallel_width.0.line.distance.0
+                    + f64::from(parallel_width.1.weight) * parallel_width.1.line.distance.0
+                    + f64::from(parallel_length.0.weight) * parallel_length.0.line.distance.0
+                    + f64::from(parallel_length.1.weight) * parallel_length.1.line.distance.0;
                 if this_score > score {
                     score = this_score;
                     field = Some(FieldWalls {
@@ -480,6 +483,154 @@ fn locate_field_with_4_walls(
     field
 }
 
+fn locate_field_with_4_walls(
+    candidate_line_width: &Vec<(HoughLine, HoughLine)>,
+    candidate_line_length: &Vec<(HoughLine, HoughLine)>,
+) -> Option<FieldWalls> {
+    let mut score = 0.;
+    let mut field: Option<FieldWalls> = None;
+    for parallel_width in candidate_line_width.iter() {
+        for parallel_length in candidate_line_length.iter() {
+            if parallel_width
+                .0
+                .line
+                .is_approx_perpendicular_with(&parallel_length.0.line)
+            {
+                // la paire fonctionne
+                let this_score = f64::from(parallel_width.0.weight)
+                    * parallel_width.0.line.distance.0
+                    + f64::from(parallel_width.1.weight) * parallel_width.1.line.distance.0
+                    + f64::from(parallel_length.0.weight) * parallel_length.0.line.distance.0
+                    + f64::from(parallel_length.1.weight) * parallel_length.1.line.distance.0;
+                if this_score > score {
+                    score = this_score;
+                    field = Some(FieldWalls {
+                        width1: WallLine::FoundAsParallelLine(parallel_width.0),
+                        width2: WallLine::FoundAsParallelLine(parallel_width.1),
+                        length1: WallLine::FoundAsParallelLine(parallel_length.0),
+                        length2: WallLine::FoundAsParallelLine(parallel_length.1),
+                    })
+                }
+            }
+        }
+    }
+
+    let Some(walls) = field else {
+        return None;
+    };
+    
+    let time1 = std::time::Instant::now();
+    let moy_walls = perform_moy(walls, candidate_line_width, candidate_line_length);
+    info!("perf perform_moy for 4 walls, took : {:?}", time1.elapsed());
+    Some(moy_walls)
+}
+
+fn perform_moy(
+    walls: FieldWalls,
+    candidate_line_width: &Vec<(HoughLine, HoughLine)>,
+    candidate_line_length: &Vec<(HoughLine, HoughLine)>,
+) -> FieldWalls {
+    let mut moy_parallel_width1 = (
+        walls.width1.line().distance,
+        walls.width1.line().angle,
+        1.,
+    );
+    let mut moy_parallel_width2 = (
+        walls.width2.line().distance,
+        walls.width2.line().angle,
+        1.,
+    );
+    let mut moy_parallel_length1 = (
+        walls.length1.line().distance,
+        walls.length1.line().angle,
+        1.,
+    );
+    let mut moy_parallel_length2 = (
+        walls.length2.line().distance,
+        walls.length2.line().angle,
+        1.,
+    );
+
+    for parallel_width in candidate_line_width.iter().map(|e| [e.0, e.1]).flatten() {
+        if _is_near(&parallel_width.line, &walls.width1.line()) {
+            moy_parallel_width1 = (
+                moy_parallel_width1.0
+                    + parallel_width.line.distance * f64::from(parallel_width.weight),
+                moy_parallel_width1.1
+                    + parallel_width.line.angle * f64::from(parallel_width.weight),
+                moy_parallel_width1.2 + f64::from(parallel_width.weight),
+            );
+        }
+        if _is_near(&parallel_width.line, &walls.width2.line()) {
+            moy_parallel_width2 = (
+                moy_parallel_width2.0
+                    + parallel_width.line.distance * f64::from(parallel_width.weight),
+                moy_parallel_width2.1
+                    + parallel_width.line.angle * f64::from(parallel_width.weight),
+                moy_parallel_width2.2 + f64::from(parallel_width.weight),
+            );
+        }
+    }
+
+    for parallel_length in candidate_line_length.iter().map(|e| [e.0, e.1]).flatten() {
+        if _is_near(&parallel_length.line, &walls.length1.line()) {
+            moy_parallel_length1 = (
+                moy_parallel_length1.0
+                    + parallel_length.line.distance * f64::from(parallel_length.weight),
+                moy_parallel_length1.1
+                    + parallel_length.line.angle * f64::from(parallel_length.weight),
+                moy_parallel_length1.2 + f64::from(parallel_length.weight),
+            );
+        }
+        if _is_near(&parallel_length.line, &walls.length2.line()) {
+            moy_parallel_length2 = (
+                moy_parallel_length2.0
+                    + parallel_length.line.distance * f64::from(parallel_length.weight),
+                moy_parallel_length2.1
+                    + parallel_length.line.angle * f64::from(parallel_length.weight),
+                moy_parallel_length2.2 + f64::from(parallel_length.weight),
+            );
+        }
+    }
+
+    FieldWalls {
+        width1: WallLine::FoundAsParallelLine(HoughLine {
+            line: PolarLine {
+                distance: moy_parallel_width1.0 / moy_parallel_width1.2,
+                angle: moy_parallel_width1.1 / moy_parallel_width1.2,
+            },
+            weight: 500, // TODO
+        }),
+        width2: WallLine::FoundAsParallelLine(HoughLine {
+            line: PolarLine {
+                distance: moy_parallel_width2.0 / moy_parallel_width2.2,
+                angle: moy_parallel_width2.1 / moy_parallel_width2.2,
+            },
+            weight: 500,
+        }),
+        length1: WallLine::FoundAsParallelLine(HoughLine {
+            line: PolarLine {
+                distance: moy_parallel_length1.0 / moy_parallel_length1.2,
+                angle: moy_parallel_length1.1 / moy_parallel_length1.2,
+            },
+            weight: 500,
+        }),
+        length2: WallLine::FoundAsParallelLine(HoughLine {
+            line: PolarLine {
+                distance: moy_parallel_length2.0 / moy_parallel_length2.2,
+                angle: moy_parallel_length2.1 / moy_parallel_length2.2,
+            },
+            weight: 500,
+        }),
+    }
+}
+
+#[inline]
+fn _is_near(line1: &PolarLine, line2: &PolarLine) -> bool {
+    line1.smallest_angle_between(line2) < Deg::new(20.).rad() // TODO params
+        && line1.distance_center_with(line2) < Meters::cm(20.)
+}
+
 #[derive(Debug)]
 enum _LineSize {
     Width,
@@ -487,27 +638,30 @@ enum _LineSize {
 }
 
 fn fallback_on_3_walls(
-    accumulator: &Box<[[u16; 181]; 601]>,
+    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
     candidate_line_width: Vec<(HoughLine, HoughLine)>,
     candidate_line_length: Vec<(HoughLine, HoughLine)>,
 ) -> Option<FieldWalls> {
     // search if a perpendicular line exists for all the parallel lines detected
     let mut all_detected_lines: Vec<(_LineSize, (HoughLine, HoughLine))> = candidate_line_width
-        .into_iter()
-        .map(|e| (_LineSize::Width, e))
+        .iter()
+        .map(|e| (_LineSize::Width, *e))
         .chain(
             candidate_line_length
-                .into_iter()
-                .map(|e| (_LineSize::Length, e)),
+                .iter()
+                .map(|e| (_LineSize::Length, *e)),
         )
         .collect();
     all_detected_lines.sort_by_key(|(_, (l1, l2))| l1.weight + l2.weight);
 
+    if all_detected_lines.is_empty() {
+        return None;
+    }
     let perpendiculars =
         search_perpendicular_lines_of(&accumulator, all_detected_lines.first().unwrap().1.0.line);
     if !perpendiculars.is_empty() {
         let perpendicular = perpendiculars.first().unwrap();
-        Some(match all_detected_lines.first().unwrap() {
+        let prop = match all_detected_lines.first().unwrap() {
             (_LineSize::Width, pair) => FieldWalls {
                 length1: WallLine::FoundAsParallelLine(pair.0),
                 length2: WallLine::FoundAsParallelLine(pair.1),
@@ -520,7 +674,13 @@ fn fallback_on_3_walls(
                 length1: WallLine::FoundAsPerpendicular(*perpendicular),
                 length2: WallLine::GuessedLine(guess_last_wall(perpendicular.line, FIELD_LENGTH)),
             },
-        })
+        };
+
+        let time1 = std::time::Instant::now();
+        let moy = perform_moy(prop, &candidate_line_width, &candidate_line_length);
+        debug!("perf moy in 3 walls, took {:?}", time1.elapsed());
+
+        Some(moy)
     } else {
         None
     }
@@ -551,7 +711,10 @@ fn _moyenne_point_carthesian(point1: (f64, f64), point2: (f64, f64)) -> (f64, f6
     ((point1.0 + point2.0) / 2.0, (point1.1 + point2.1) / 2.0)
 }
 
-fn calculate_center_of_field_in_carthesian(rec: rerun::RecordingStream, walls: &FieldWalls) -> (f64, f64) {
+fn calculate_center_of_field_in_carthesian(
+    rec: rerun::RecordingStream,
+    walls: &FieldWalls,
+) -> (f64, f64) {
     let inter1 = walls
         .width1
         .line()
@@ -578,12 +741,16 @@ fn calculate_center_of_field_in_carthesian(rec: rerun::RecordingStream, walls: &
 
     rec.log(
         "lidar/inter1",
-        &rerun::Points2D::new([(inter1.to_carthesian_point().0 as f32, inter1.to_carthesian_point().1 as f32)])
-            .with_colors([colors::ORANGE])
-            .with_radii([0.05])
-            .with_labels(["inter1"])
-            .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
-    ).unwrap();
+        &rerun::Points2D::new([(
+            inter1.to_carthesian_point().0 as f32,
+            inter1.to_carthesian_point().1 as f32,
+        )])
+        .with_colors([colors::ORANGE])
+        .with_radii([0.05])
+        .with_labels(["inter1"])
+        .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+    )
+    .unwrap();
 
     rec.log(
         "lidar/inter2",
@@ -592,7 +759,8 @@ fn calculate_center_of_field_in_carthesian(rec: rerun::RecordingStream, walls: &
             .with_radii([0.05])
             .with_labels(["inter2"])
             .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
-    ).unwrap();
+    )
+    .unwrap();
 
     rec.log(
         "lidar/inter3",
@@ -601,7 +769,8 @@ fn calculate_center_of_field_in_carthesian(rec: rerun::RecordingStream, walls: &
             .with_radii([0.05])
             .with_labels(["inter3"])
             .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
-    ).unwrap();
+    )
+    .unwrap();
 
     rec.log(
         "lidar/inter4",
@@ -610,7 +779,8 @@ fn calculate_center_of_field_in_carthesian(rec: rerun::RecordingStream, walls: &
             .with_radii([0.05])
             .with_labels(["inter4"])
             .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
-    ).unwrap();
+    )
+    .unwrap();
 
     let m1 = _moyenne_point_carthesian(inter1.to_carthesian_point(), inter2);
     let m2 = _moyenne_point_carthesian(inter1.to_carthesian_point(), inter3);
@@ -1019,53 +1189,60 @@ mod tests {
         )
         .unwrap();
 
-        // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
-        let data = load_log(TEST_BAS_GAUCHE_ORIENTE_GAUCHE);
-        log_lidar_points(&rec, &data).unwrap();
-        // println!("{:#?}", data);
-        let accumulator = build_hough_accumulator(&data);
-        let candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
-        let candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
+        for log_data in TESTS_DETECTION {
+            // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
+            let data = load_log(&log_data);
+            let time1 = std::time::Instant::now();
+            let accumulator = build_hough_accumulator(&data);
+            let candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
+            let candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
 
-        let field = locate_field_with_4_walls(&candidate_line_width, &candidate_line_length)
-            .or_else(|| {
-                info!("Détection 4 murs échouée, tente avec 3 murs");
-                fallback_on_3_walls(&accumulator, candidate_line_width, candidate_line_length)
-            });
+            let field = locate_field_with_4_walls(&candidate_line_width, &candidate_line_length)
+                .or_else(|| {
+                    info!("Détection 4 murs échouée, tente avec 3 murs");
+                    fallback_on_3_walls(&accumulator, candidate_line_width, candidate_line_length)
+                });
 
-        let mut vl = Vec::with_capacity(50);
+            let mut vl = Vec::with_capacity(50);
 
-        if let Some(field_found) = field {
-            vl.push(ViewportLine {
-                line: field_found.length1.line(),
-                color: colors::BLUE,
-            });
-            vl.push(ViewportLine {
-                line: field_found.length2.line(),
-                color: colors::BLUE,
-            });
-            vl.push(ViewportLine {
-                line: field_found.width1.line(),
-                color: colors::BLUE,
-            });
-            vl.push(ViewportLine {
-                line: field_found.width2.line(),
-                color: colors::BLUE,
-            });
+            log_lidar_points(&rec, &data).unwrap();
+            if let Some(field_found) = field {
+                vl.push(ViewportLine {
+                    line: field_found.length1.line(),
+                    color: colors::BLUE,
+                });
+                vl.push(ViewportLine {
+                    line: field_found.length2.line(),
+                    color: colors::BLUE,
+                });
+                vl.push(ViewportLine {
+                    line: field_found.width1.line(),
+                    color: colors::BLUE,
+                });
+                vl.push(ViewportLine {
+                    line: field_found.width2.line(),
+                    color: colors::BLUE,
+                });
 
-            log_lidar_lines(&rec, vl).unwrap();
+                log_lidar_lines(&rec, vl).unwrap();
 
-            let center = calculate_center_of_field_in_carthesian(rec.clone(), &field_found);
-            info!("{:?}", center);
-            rec.log(
-                "lidar/cal_center_field",
-                &rerun::Points2D::new([(center.0 as f32, center.1 as f32)])
-                    .with_colors([colors::MAGENTA])
-                    .with_radii([0.01])
-                    .with_labels(["centre du terrain calculé"])
-                    .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
-            )
-            .unwrap();
+                let center = calculate_center_of_field_in_carthesian(rec.clone(), &field_found);
+                rec.log(
+                    "lidar/cal_center_field",
+                    &rerun::Points2D::new([(center.0 as f32, center.1 as f32)])
+                        .with_colors([colors::MAGENTA])
+                        .with_radii([0.01])
+                        .with_labels(["centre du terrain calculé"])
+                        .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(
+                            false,
+                        ))),
+                )
+                .unwrap();
+            } else {
+                error!("Echoue à détecter les murs")
+            }
+
+            debug!("perf all lidar_analyzer : {:?}", time1.elapsed());
         }
 
         // for ((first, second), color) in pl.iter().zip(COLORS.iter().cycle()) {
@@ -1092,7 +1269,6 @@ mod tests {
         //         stroke: egui::Stroke::new(5.0, *color),
         //     });
         // }
-        panic!()
     }
 }
 

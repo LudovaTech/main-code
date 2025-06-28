@@ -38,6 +38,14 @@ impl Div for Meters {
     }
 }
 
+impl Div<f64> for Meters {
+    type Output = Meters;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Meters(self.0 / rhs)
+    }
+}
+
 impl Neg for Meters {
     type Output = Self;
 

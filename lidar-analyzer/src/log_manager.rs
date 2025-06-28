@@ -62,6 +62,12 @@ where
             log_level = "CRITICAL"
         }
 
+        if *event.metadata().level() >= tracing::Level::INFO
+            && visitor.message.starts_with("perf")
+        {
+            log_level = "PERF"
+        }
+
         let mut text_log = rerun::TextLog::new(format!(
             "{} | from {} | env {}.",
             visitor.message,
