@@ -5,16 +5,11 @@ edition = "2024"
 
 [dependencies]
 radians = "0.3.1"
-rerun = "0.23.4"
+rerun = { version = "0.23.4", features = ["image", "sdk"], default-features = false }
 rppal = "0.22.1"
 tracing = "0.1.41"
 tracing-panic = "0.1.2"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-
-[dev-dependencies.winit]
-default-features = false
-features = ["wayland"]
-version = "0.30.9"
 
 [profile.test]
 inherits = "release"
