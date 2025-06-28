@@ -3,6 +3,8 @@ use core::f64;
 use crate::parse::{LidarPoint, PolarPoint};
 use crate::prelude::*;
 
+// TODO : virer cette histoire de conventions !
+
 // Constantes
 
 // /// on exclut les lignes qui contiennent moins de x points
@@ -105,17 +107,20 @@ impl PolarLine {
     /// Les droites ne doivent pas être parallèles pour que le résultat aie du sens
     /// Redémontrer avec r = r0 / cos(theta - theta0)
     fn intersect(&self, other: &Self) -> Option<PolarPoint> {
-        let self_angle_wrap = Rad::new(self.angle.val() % Rad::FULL_TURN.val());
-        let other_angle_wrap = Rad::new(other.angle.val() % Rad::FULL_TURN.val());
+        // angles between 0-2pi
+        let self_angle_wrap = Rad::new((self.angle + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
+        let other_angle_wrap = Rad::new((other.angle + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
+        debug!("{} {}", self_angle_wrap, other_angle_wrap);
         if self.is_parallel_with(other) {
             // Les droites sont alignés
             return None;
         }
         let theta = Rad::atan2(
-            self.distance.0 * other_angle_wrap.cos() - other.distance.0 * self_angle_wrap.cos(),
-            self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin(),
-        )
-        .mag();
+             other.distance.0 * self_angle_wrap.cos() - self.distance.0 * other_angle_wrap.cos(),
+             self.distance.0 * other_angle_wrap.sin() - other.distance.0 * self_angle_wrap.sin(),
+        );
+
+        let theta = Rad::new((theta + Rad::FULL_TURN).val() % Rad::FULL_TURN.val());
 
         let r = Meters(self.distance.0 / (theta - self_angle_wrap).cos());
         Some(PolarPoint {
@@ -546,13 +551,12 @@ fn _moyenne_point_carthesian(point1: (f64, f64), point2: (f64, f64)) -> (f64, f6
     ((point1.0 + point2.0) / 2.0, (point1.1 + point2.1) / 2.0)
 }
 
-fn calculate_center_of_field_in_carthesian(walls: &FieldWalls) -> (f64, f64) {
+fn calculate_center_of_field_in_carthesian(rec: rerun::RecordingStream, walls: &FieldWalls) -> (f64, f64) {
     let inter1 = walls
         .width1
         .line()
         .intersect(&walls.length1.line())
-        .unwrap()
-        .to_carthesian_point();
+        .unwrap();
     let inter2 = walls
         .width1
         .line()
@@ -572,10 +576,44 @@ fn calculate_center_of_field_in_carthesian(walls: &FieldWalls) -> (f64, f64) {
         .unwrap()
         .to_carthesian_point();
 
-    println!("inter {:?}", inter3);
+    rec.log(
+        "lidar/inter1",
+        &rerun::Points2D::new([(inter1.to_carthesian_point().0 as f32, inter1.to_carthesian_point().1 as f32)])
+            .with_colors([colors::ORANGE])
+            .with_radii([0.05])
+            .with_labels(["inter1"])
+            .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+    ).unwrap();
 
-    let m1 = _moyenne_point_carthesian(inter1, inter2);
-    let m2 = _moyenne_point_carthesian(inter1, inter3);
+    rec.log(
+        "lidar/inter2",
+        &rerun::Points2D::new([(inter2.0 as f32, inter2.1 as f32)])
+            .with_colors([colors::ORANGE])
+            .with_radii([0.05])
+            .with_labels(["inter2"])
+            .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+    ).unwrap();
+
+    rec.log(
+        "lidar/inter3",
+        &rerun::Points2D::new([(inter3.0 as f32, inter3.1 as f32)])
+            .with_colors([colors::ORANGE])
+            .with_radii([0.05])
+            .with_labels(["inter3"])
+            .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+    ).unwrap();
+
+    rec.log(
+        "lidar/inter4",
+        &rerun::Points2D::new([(inter4.0 as f32, inter4.1 as f32)])
+            .with_colors([colors::ORANGE])
+            .with_radii([0.05])
+            .with_labels(["inter4"])
+            .with_show_labels(rerun::components::ShowLabels(rerun::datatypes::Bool(false))),
+    ).unwrap();
+
+    let m1 = _moyenne_point_carthesian(inter1.to_carthesian_point(), inter2);
+    let m2 = _moyenne_point_carthesian(inter1.to_carthesian_point(), inter3);
     let m3 = _moyenne_point_carthesian(inter3, inter4);
     let m4 = _moyenne_point_carthesian(inter2, inter4);
 
@@ -1017,7 +1055,7 @@ mod tests {
 
             log_lidar_lines(&rec, vl).unwrap();
 
-            let center = calculate_center_of_field_in_carthesian(&field_found);
+            let center = calculate_center_of_field_in_carthesian(rec.clone(), &field_found);
             info!("{:?}", center);
             rec.log(
                 "lidar/cal_center_field",
