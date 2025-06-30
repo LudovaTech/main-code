@@ -245,7 +245,7 @@ const MARGE_ANGLE: i32 = 10;
 
 #[inline]
 fn look_around_for_lines_angle_only(
-    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    accumulator: &[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE],
     distance_case_applied: usize,
     wanted_angle_case: usize,
 ) -> Vec<HoughLine> {
@@ -265,7 +265,7 @@ fn look_around_for_lines_angle_only(
                 line: case_to_polar_line(distance_case_applied, angle_case_applied),
                 weight: found_weight,
             };
-            println!("found : {:?}", found_line);
+            //println!("found : {:?}", found_line);
             found_lines.push(found_line);
         } else {
             //println!("too small {:?} {} {}", distance_case_applied, angle_case_applied, weight);
@@ -276,7 +276,7 @@ fn look_around_for_lines_angle_only(
 
 #[inline]
 fn look_around_for_lines(
-    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    accumulator: &[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE],
     wanted_distance_case: usize,
     wanted_angle_case: usize,
 ) -> Vec<HoughLine> {
@@ -300,10 +300,11 @@ fn look_around_for_lines(
 
 /// guide : <https://www.keymolen.com/2013/05/hough-transformation-c-implementation.html>
 fn build_hough_accumulator(
+    accumulator: &mut [[u16; ANGLE_TAILLE]; DISTANCE_TAILLE],
     points: &Vec<LidarPoint>,
-) -> Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]> {
+) {
     // Création de la matrice de la transformation de Hough
-    let mut accumulator = [[0u16; ANGLE_TAILLE]; DISTANCE_TAILLE];
+    //let mut accumulator = [[0u16; ANGLE_TAILLE]; DISTANCE_TAILLE];
     for point in points.iter() {
         if point.point.distance > LIDAR_DISTANCE_MAX {
             continue;
@@ -334,8 +335,6 @@ fn build_hough_accumulator(
             calculated_angle += Rad::new(ANGLE_RESOLUTION);
         }
     }
-
-    Box::new(accumulator)
 }
 
 fn conv_convention_big_angle_to_negative_distance(line: PolarLine) -> PolarLine {
@@ -354,7 +353,7 @@ fn conv_convention_big_angle_to_negative_distance(line: PolarLine) -> PolarLine 
 }
 
 fn search_all_parallel_lines(
-    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    accumulator: &[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE],
     distance_between_lines: Meters,
 ) -> Vec<(HoughLine, HoughLine)> {
     let mut found_lines = Vec::new();
@@ -399,7 +398,7 @@ fn search_all_parallel_lines(
 }
 
 fn search_perpendicular_lines_of(
-    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    accumulator: &[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE],
     line: PolarLine,
 ) -> Vec<HoughLine> {
     // let (distance_case, angle_case) = polar_point_to_case(line._to_polar_point());
@@ -638,7 +637,7 @@ enum _LineSize {
 }
 
 fn fallback_on_3_walls(
-    accumulator: &Box<[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE]>,
+    accumulator: &[[u16; ANGLE_TAILLE]; DISTANCE_TAILLE],
     candidate_line_width: Vec<(HoughLine, HoughLine)>,
     candidate_line_length: Vec<(HoughLine, HoughLine)>,
 ) -> Option<FieldWalls> {
@@ -1152,31 +1151,32 @@ mod tests {
 
     #[test]
     fn bench_hough_accumulator() {
-        let nb_essais: u32 = 50;
+        let nb_essais: u32 = 250;
         let mut moyenne = Duration::ZERO;
         for test in TESTS_DETECTION {
-            let data = load_log(test);
+            //let data = load_log(test);
             for _ in 0..nb_essais {
                 let before = Instant::now();
-                let _ = build_hough_accumulator(&data);
+                //let mut accumulator: [[u16; ANGLE_TAILLE]; DISTANCE_TAILLE] = [[0; ANGLE_TAILLE]; DISTANCE_TAILLE];
+                //let _ = build_hough_accumulator(&mut accumulator, &data);
+                test_1();
                 moyenne += before.elapsed();
             }
         }
         let nb_tests = nb_essais * (u32::try_from(TESTS_DETECTION.len()).unwrap());
-        eprintln!(
-            "Bench Hough Accumulator (on {} values): {:#?}",
+        panic!(
+            "perf Bench Hough Accumulator (on {} values): {:#?}",
             nb_tests,
             moyenne / nb_tests
         )
     }
 
-    #[test]
     fn test_1() {
         use crate::complex_viewport::ViewportLine;
         let rec = rerun::RecordingStreamBuilder::new("test_1")
             .spawn()
             .unwrap();
-        crate::log_manager::set_up_logging(rec.clone()).unwrap();
+        //crate::log_manager::set_up_logging(rec.clone()).unwrap();
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
         rec.log(
@@ -1193,7 +1193,8 @@ mod tests {
             // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
             let data = load_log(&log_data);
             let time1 = std::time::Instant::now();
-            let accumulator = build_hough_accumulator(&data);
+            let mut accumulator: [[u16; ANGLE_TAILLE]; DISTANCE_TAILLE] = [[0; ANGLE_TAILLE]; DISTANCE_TAILLE];
+            build_hough_accumulator(&mut accumulator, &data);
             let candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
             let candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
 
