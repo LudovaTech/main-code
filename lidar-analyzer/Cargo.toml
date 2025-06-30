@@ -2,7 +2,7 @@
 name = "lidar-analyzer"
 version = "0.2.0"
 edition = "2024"
-
+    
 [dependencies]
 radians = "0.3.1"
 rerun = { version = "0.23.4", features = ["image", "sdk"], default-features = false }

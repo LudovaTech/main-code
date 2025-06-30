@@ -361,7 +361,7 @@ fn search_all_parallel_lines(
 
     // TODO diviser le nombre par deux ? (for p_distance in (DISTANCE_TAILLE/2)..DISTANCE_TAILLE)
     for p_angle in 0..ANGLE_TAILLE {
-        for p_distance in 0..DISTANCE_TAILLE {
+        for p_distance in (DISTANCE_TAILLE/2)..DISTANCE_TAILLE {
             let weight = accumulator[p_distance][p_angle];
             if weight < HOUGH_TRANSFORM_MIN_POINT_PER_LINE {
                 continue;
