@@ -207,6 +207,7 @@ fn polar_point_to_case_angle_only(angle: Rad) -> usize {
 }
 
 /// Fonctionne avec les deux convention, distance négative et angle > 180
+#[inline]
 fn polar_point_to_case(point: PolarPoint) -> (usize, usize) {
     assert!(
         !(point.distance < Meters(0.0) && point.angle > Rad::HALF_TURN),
@@ -320,7 +321,7 @@ fn build_hough_accumulator(
             // cos(x) = cos(abs(x))
             let (distance_case, angle_case) = polar_point_to_case(PolarPoint {
                 angle: calculated_angle,
-                distance: point.point.distance * (point.point.angle - calculated_angle).mag().cos(),
+                distance: point.point.distance * (point.point.angle - calculated_angle).cos(),
             });
             // println!("{} {} {}", distance_case, offset, distance_factor);
             accumulator[distance_case][angle_case] =
@@ -1151,15 +1152,14 @@ mod tests {
 
     #[test]
     fn bench_hough_accumulator() {
-        let nb_essais: u32 = 250;
+        let nb_essais: u32 = 500;
         let mut moyenne = Duration::ZERO;
         for test in TESTS_DETECTION {
-            //let data = load_log(test);
+            let data = load_log(test);
             for _ in 0..nb_essais {
                 let before = Instant::now();
-                //let mut accumulator: [[u16; ANGLE_TAILLE]; DISTANCE_TAILLE] = [[0; ANGLE_TAILLE]; DISTANCE_TAILLE];
-                //let _ = build_hough_accumulator(&mut accumulator, &data);
-                test_1();
+                let mut accumulator: [[u16; ANGLE_TAILLE]; DISTANCE_TAILLE] = [[0; ANGLE_TAILLE]; DISTANCE_TAILLE];
+                let _ = build_hough_accumulator(&mut accumulator, &data);
                 moyenne += before.elapsed();
             }
         }
@@ -1171,12 +1171,13 @@ mod tests {
         )
     }
 
+    #[test]
     fn test_1() {
         use crate::complex_viewport::ViewportLine;
         let rec = rerun::RecordingStreamBuilder::new("test_1")
             .spawn()
             .unwrap();
-        //crate::log_manager::set_up_logging(rec.clone()).unwrap();
+        crate::log_manager::set_up_logging(rec.clone()).unwrap();
         // TODO distance + cas : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
         // TODO améliorer l'algo en prenant en compte la proximité des points entre eux. TEST_HAUT_DROITE_ORIENTE_DROITE
         rec.log(
@@ -1190,20 +1191,29 @@ mod tests {
         .unwrap();
 
         for log_data in TESTS_DETECTION {
+            info!("NEXT");
             // notes : fonctionne en 2*2 : TEST_BAS_GAUCHE_ORIENTE_GAUCHE
             let data = load_log(&log_data);
             let time1 = std::time::Instant::now();
             let mut accumulator: [[u16; ANGLE_TAILLE]; DISTANCE_TAILLE] = [[0; ANGLE_TAILLE]; DISTANCE_TAILLE];
+            let time2 = std::time::Instant::now();
+            debug!("perf accumulator init {:?}", time2 - time1);
             build_hough_accumulator(&mut accumulator, &data);
+            let time3 = std::time::Instant::now();
+            debug!("perf build_hough_accumulator {:?}", time3 - time2);
             let candidate_line_width = search_all_parallel_lines(&accumulator, FIELD_LENGTH);
             let candidate_line_length = search_all_parallel_lines(&accumulator, FIELD_WIDTH);
-
+            let time4 = std::time::Instant::now();
+            debug!("perf candidate_line {:?}", time4 - time3);
             let field = locate_field_with_4_walls(&candidate_line_width, &candidate_line_length)
                 .or_else(|| {
+                    let time5 = std::time::Instant::now();
+                    debug!("perf locate_field_with_4_walls {:?}", time5 - time4);
                     info!("Détection 4 murs échouée, tente avec 3 murs");
                     fallback_on_3_walls(&accumulator, candidate_line_width, candidate_line_length)
                 });
-
+            let time5 = std::time::Instant::now();
+            debug!("perf locate_field_with_4_walls {:?}", time5 - time4);
             let mut vl = Vec::with_capacity(50);
 
             log_lidar_points(&rec, &data).unwrap();
