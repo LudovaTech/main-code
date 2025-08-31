@@ -1,0 +1,17 @@
+//{
+//    "rust-analyzer.cargo.buildScripts.overrideCommand": [
+//        "cross",
+//        "check",
+//        "--workspace",
+//        "--message-format=json",
+//        "--all-targets",
+//        "--keep-going",
+//    ],
+//    "rust-analyzer.check.overrideCommand": [
+//        "cross",
+//        "check",
+//        "--workspace",
+//        "--message-format=json",
+//        "--all-targets",
+//    ]
+//}
