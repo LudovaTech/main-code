@@ -8,6 +8,15 @@
 #    sudo apt-get install libopencv-dev
 #    sudo apt install llvm-dev libclang-dev clang
 
+# Penser v2
+# Pour libcamera :
+#     sudo apt install libcamera0.4
+#     sudo apt install libcamera-dev
+#     sudo apt-get install libclang-dev
+
+
+
+
 ip_addr=192.168.1.35
 
 echo "transferring file..."
