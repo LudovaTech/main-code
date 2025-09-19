@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+cross build
+ip_addr=192.168.1.35
+scp ./target/aarch64-unknown-linux-gnu/debug/camera robot@$ip_addr:/home/robot/camera

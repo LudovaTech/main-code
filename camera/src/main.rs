@@ -1,29 +1,24 @@
 use std::error::Error;
 
 use libcamera::{
-    camera_manager::CameraManager,
-    framebuffer::AsFrameBuffer,
-    framebuffer_allocator::{FrameBuffer, FrameBufferAllocator},
-    request::RequestStatus,
-    stream::{Stream, StreamRole},
+    camera::CameraConfigurationStatus, camera_manager::CameraManager, framebuffer::AsFrameBuffer, framebuffer_allocator::{FrameBuffer, FrameBufferAllocator}, framebuffer_map::MemoryMappedFrameBuffer, request::RequestStatus, stream::{Stream, StreamRole}
 };
 
 // documentation of libcamera at : https://libcamera.org/guides/application-developer.html
 
 fn main() -> Result<(), Box<dyn Error>> {
-    panic!("Hello crossing World!");
     let camera_manager = CameraManager::new().expect("cannot initiate camera manager");
 
-    let cameras = camera_manager.cameras();
-    let unactive_camera = cameras.get(0).expect("No camera detected");
-    let camera = unactive_camera.acquire().expect("unable to lock camera");
-    println!("got camera {}", camera.id());
+    // let cameras = camera_manager.cameras();
+    // let unactive_camera = cameras.get(0).expect("No camera detected");
+    // let mut camera = unactive_camera.acquire().expect("unable to lock camera");
+    // println!("got camera {}", camera.id());
 
-    // camera configuration
+    // // camera configuration
 
-    let mut default_conf = camera
-        .generate_configuration(&[StreamRole::VideoRecording])
-        .expect("no default conf");
+    // let mut default_conf = camera
+    //     .generate_configuration(&[StreamRole::VideoRecording])
+    //     .expect("no default conf");
 
     // match default_conf.validate() {
     //     CameraConfigurationStatus::Valid => println!("Configuration de la caméra valide !"),
@@ -45,14 +40,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // // let's use default frame allocator for now
 
-    // let allocator = FrameBufferAllocator::new(&camera);
+    // let mut allocator = FrameBufferAllocator::new(&camera);
     // // for cfg in configuration.get(0) {
     // //     allocator.alloc(cfg.stream())
     // // }
     // let buffers = allocator.alloc(&stream).expect("cannot allocate buffers");
+
+    // let buffers = buffers.into_iter().map(|buf| MemoryMappedFrameBuffer::new(buf).unwrap()).collect::<Vec<_>>();
     // let requests = buffers
-    //     .iter()
-    //     .for_each(|buffer| {
+    //     .into_iter()
+    //     .map(|buffer| {
     //         let mut request = camera
     //             .create_request(None)
     //             .expect("unable to create request to camera");
@@ -63,7 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     //     })
     //     .collect::<Vec<_>>();
 
-    // camera.on_request_completed(|request| {
+    // camera.on_request_completed(move |request| {
     //     if request.status() != RequestStatus::Complete {
     //         return;
     //     }
