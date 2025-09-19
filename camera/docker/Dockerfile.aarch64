@@ -17,6 +17,13 @@ RUN apt-get install -y \
     gcc-12-aarch64-linux-gnu \
     g++-12-aarch64-linux-gnu
 
+# install rustup and enable rust-analyzer
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    ln -s /usr/local/cargo/bin/* /usr/local/bin/ || true
+RUN rustup target add aarch64-unknown-linux-gnu
+RUN rustup component add rust-analyzer
+
 # set env variables for cross-compilation
 ENV SYSROOT=/target_fs
 ENV PKG_CONFIG_SYSROOT_DIR=$SYSROOT
