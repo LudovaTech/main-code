@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{env, error::Error};
 
 use libcamera::{
     camera::CameraConfigurationStatus, camera_manager::CameraManager, framebuffer::AsFrameBuffer, framebuffer_allocator::{FrameBuffer, FrameBufferAllocator}, framebuffer_map::MemoryMappedFrameBuffer, request::RequestStatus, stream::{Stream, StreamRole}
@@ -7,7 +7,13 @@ use libcamera::{
 // documentation of libcamera at : https://libcamera.org/guides/application-developer.html
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let camera_manager = CameraManager::new().expect("cannot initiate camera manager");
+    // let camera_manager = CameraManager::new().expect("cannot initiate camera manager");
+    let rec = rerun::RecordingStreamBuilder::new("camera_app").connect_grpc()?;
+    rec.log(
+        "test",
+        &rerun::TextLog::new("ok!"),
+    )?;
+
 
     // let cameras = camera_manager.cameras();
     // let unactive_camera = cameras.get(0).expect("No camera detected");

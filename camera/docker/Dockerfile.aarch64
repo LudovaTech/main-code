@@ -30,7 +30,8 @@ ENV PKG_CONFIG_SYSROOT_DIR=$SYSROOT
 ENV PKG_CONFIG_PATH=$SYSROOT/usr/lib/aarch64-linux-gnu/pkgconfig
 ENV PKG_CONFIG_LIBDIR=$SYSROOT/usr/lib/aarch64-linux-gnu/pkgconfig
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc-12
-ENV RUSTFLAGS="-C link-args=--sysroot=$SYSROOT -C target-cpu=cortex-a76"
+# Don't forget to set correct architecture, a72 for pi4
+ENV RUSTFLAGS="-C link-args=--sysroot=$SYSROOT -C target-cpu=cortex-a72"
 
 # Set up the sysroot for QEMU emulation runtime
 ENV QEMU_LD_PREFIX=$SYSROOT
